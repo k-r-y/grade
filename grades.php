@@ -1,85 +1,89 @@
+<?php
+session_start();
+require 'db_connect.php';
+
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'student') {
+    header("Location: login.php");
+    exit();
+}
+
+$user_id = $_SESSION['user_id'];
+
+// Fetch All Grades
+$stmt = $conn->prepare("SELECT * FROM grades WHERE student_id = ? ORDER BY academic_year DESC, semester DESC, created_at DESC");
+$stmt->bind_param("i", $user_id);
+$stmt->execute();
+$result = $stmt->get_result();
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>My Grades - KLD Grade System</title>
-  <link rel="icon" type="image/png" href="assets/logo2.png">
-  <link href="css/bootstrap.min.css" rel="stylesheet">
-  <link href="bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
-  <style>
-    body {
-      font-family: 'Poppins', sans-serif;
-      background: linear-gradient(180deg, #e0fbfc, #fefae0);
-      color: #03045e;
-    }
-    .grades-container { padding-top: 100px; padding-bottom: 50px; }
-    .table-custom {
-      background: rgba(255,255,255,0.85);
-      backdrop-filter: blur(10px);
-      border-radius: 15px;
-      box-shadow: 0 6px 20px rgba(0,0,0,0.1);
-    }
-    .table-custom th, .table-custom td {
-      vertical-align: middle;
-      text-align: center;
-    }
-    .section-title { font-weight: 600; color: #023047; margin-bottom: 30px; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Grades | KLD Grade System</title>
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+    <link href="bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="verdantDesignSystem.css">
 </head>
 <body>
 
-  <?php include 'navbar_dashboard.php'; ?>
+    <?php include 'navbar_dashboard.php'; ?>
 
-  <div class="container grades-container">
-    <h2 class="section-title text-center mb-4"><i class="bi bi-journal-text me-2"></i>My Grades</h2>
+    <div class="vds-container" style="padding-top: 40px; padding-bottom: 60px;">
+        
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="vds-h2">My Grades</h1>
+            <button class="vds-btn vds-btn-secondary" onclick="window.print()">
+                <i class="bi bi-printer me-2"></i>Print
+            </button>
+        </div>
 
-    <div class="table-responsive">
-      <table class="table table-striped table-hover table-custom">
-        <thead class="table-primary">
-          <tr>
-            <th>Subject</th>
-            <th>Semester</th>
-            <th>Grade</th>
-            <th>Remarks</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>Mathematics</td>
-            <td>1st Semester</td>
-            <td>A</td>
-            <td>Excellent</td>
-          </tr>
-          <tr>
-            <td>English</td>
-            <td>1st Semester</td>
-            <td>B+</td>
-            <td>Good</td>
-          </tr>
-          <tr>
-            <td>Science</td>
-            <td>1st Semester</td>
-            <td>A-</td>
-            <td>Very Good</td>
-          </tr>
-          <tr>
-            <td>History</td>
-            <td>1st Semester</td>
-            <td>B</td>
-            <td>Good</td>
-          </tr>
-        </tbody>
-      </table>
+        <div class="vds-card">
+            <div class="table-responsive">
+                <table class="vds-table">
+                    <thead>
+                        <tr>
+                            <th>Academic Year</th>
+                            <th>Semester</th>
+                            <th>Subject Code</th>
+                            <th>Grade</th>
+                            <th>Remarks</th>
+                            <th>Date Posted</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if ($result->num_rows > 0): ?>
+                            <?php while($row = $result->fetch_assoc()): ?>
+                                <tr>
+                                    <td><?php echo htmlspecialchars($row['academic_year']); ?></td>
+                                    <td><?php echo htmlspecialchars($row['semester']); ?></td>
+                                    <td style="font-weight: 600;"><?php echo htmlspecialchars($row['subject_code']); ?></td>
+                                    <td>
+                                        <span class="vds-badge <?php echo ($row['grade'] <= 3.0) ? 'vds-badge-success' : 'vds-badge-fail'; ?>">
+                                            <?php echo htmlspecialchars($row['grade']); ?>
+                                        </span>
+                                    </td>
+                                    <td><?php echo htmlspecialchars($row['remarks']); ?></td>
+                                    <td style="color: var(--vds-text-muted);"><?php echo date('M d, Y', strtotime($row['created_at'])); ?></td>
+                                </tr>
+                            <?php endwhile; ?>
+                        <?php else: ?>
+                            <tr>
+                                <td colspan="6" class="text-center p-5 text-muted">
+                                    <i class="bi bi-folder2-open display-4 d-block mb-3"></i>
+                                    No grades found.
+                                </td>
+                            </tr>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
     </div>
 
-    <div class="text-center mt-4">
-      <a href="dashboard.php" class="btn btn-primary"><i class="bi bi-arrow-left-circle me-2"></i>Back to Dashboard</a>
-    </div>
-  </div>
+    <?php include 'footer_dashboard.php'; ?>
 
-  <?php include 'footer_dashboard.php'; ?>
-  <script src="js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

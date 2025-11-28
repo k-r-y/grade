@@ -1,15 +1,52 @@
 <?php
 session_start();
-require 'db_connect.php'; // your database connection
+require 'db_connect.php';
+require 'PHPMailer-7.0.0/src/PHPMailer.php';
+require 'PHPMailer-7.0.0/src/SMTP.php';
+require 'PHPMailer-7.0.0/src/Exception.php';
+
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
+
+function resendOTP($email) {
+    // Re-use logic or include from a helper file. 
+    // For simplicity, I'll inline a basic version or assume the user will request it via UI if I redirect them.
+    // Actually, the requirement says "another code will be sent to their email".
+    // So I must generate and send here.
+    
+    global $conn;
+    $otp = rand(100000, 999999);
+    $expires_at = date('Y-m-d H:i:s', time() + 600);
+    
+    $stmtOtp = $conn->prepare("INSERT INTO verification_codes (email, code, expires_at) VALUES (?, ?, ?)");
+    $stmtOtp->bind_param("sss", $email, $otp, $expires_at);
+    $stmtOtp->execute();
+
+    $mail = new PHPMailer(true);
+    try {
+        $mail->isSMTP();
+        $mail->Host       = 'smtp.gmail.com';
+        $mail->SMTPAuth   = true;
+        $mail->Username   = 'kevinselibio10@gmail.com'; 
+        $mail->Password   = 'ruxmlcupgdicyywc';   
+        $mail->SMTPSecure = 'tls';
+        $mail->Port       = 587;
+        $mail->setFrom('kevinselibio10@gmail.com', 'KLD Grade System');
+        $mail->addAddress($email);
+        $mail->isHTML(true);
+        $mail->Subject = 'KLD Verification Code';
+        $mail->Body    = "Your new OTP code is <b>$otp</b>.";
+        $mail->send();
+    } catch (Exception $e) {
+        // Log error
+    }
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-
-    // Get email and password from login form
-    $email = trim($_POST['email']); // make sure your login form input is name="email"
+    $email = trim($_POST['email']);
     $password = $_POST['password'];
 
-    // Prepare statement to fetch user by email
-    $stmt = $conn->prepare("SELECT user_type, user_id, first_name, last_name, email, Password FROM users WHERE email = ?");
+    $stmt = $conn->prepare("SELECT id, role, full_name, password_hash, email, is_verified, school_id FROM users WHERE email = ?");
     $stmt->bind_param("s", $email);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -17,50 +54,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($result->num_rows === 1) {
         $user = $result->fetch_assoc();
 
-        // Verify password
-        if (password_verify($password, $user['Password'])) {
-            // Login successful, set session variables
-            $_SESSION['user_id'] = $user['user_id'];
-            $_SESSION['user_name'] = $user['first_name'] . ' ' . $user['last_name'];
-            $_SESSION['email'] = $user['email']; // optional
-            $_SESSION['user_type'] = $user['user_type'];
-
-            // Redirect to dashboard
-            // header("Location: dashboard.php");
-            // exit();
-            if ($user['user_type'] === 'admin') {
-                header("Location: admin_dashboard.php");
-                exit();
-            } 
-            else if ($user['user_type'] === 'teacher') {
-                header("Location: teacher_dashboard.php");
-                exit();
-            } 
-            else if ($user['user_type'] === 'student') {
-                header("Location: dashboard.php");
-                exit();
-            } 
-            else {
-                // ❌ Unexpected user_type
-                $_SESSION['login_error'] = "User role is not recognized. Please contact the administrator.";
-                header("Location: login.php");
+        if (password_verify($password, $user['password_hash'])) {
+            
+            // 1. Check Verification
+            if ($user['is_verified'] == 0) {
+                $_SESSION['verify_email'] = $email;
+                resendOTP($email);
+                $_SESSION['login_error'] = "Email not verified. A new code has been sent.";
+                header("Location: register.php?step=2");
                 exit();
             }
+
+            // 2. Check Profile Completion
+            if (empty($user['school_id']) || empty($user['full_name'])) {
+                $_SESSION['verify_email'] = $email;
+                $_SESSION['login_error'] = "Please complete your profile.";
+                header("Location: register.php?step=3");
+                exit();
+            }
+
+            // 3. Login Success
+            $_SESSION['user_id'] = $user['id'];
+            $_SESSION['full_name'] = $user['full_name'];
+            $_SESSION['email'] = $user['email'];
+            $_SESSION['role'] = $user['role'];
+
+            if ($user['role'] === 'admin') {
+                header("Location: admin_dashboard.php");
+            } elseif ($user['role'] === 'teacher') {
+                header("Location: teacher_dashboard.php");
+            } else {
+                header("Location: dashboard.php");
+            }
+            exit();
+
         } else {
-            // Wrong password
             $_SESSION['login_error'] = "Incorrect password.";
             header("Location: login.php");
             exit();
         }
     } else {
-        // User not found
         $_SESSION['login_error'] = "No account found with that email.";
         header("Location: login.php");
         exit();
     }
-
 } else {
-    // If not POST request, redirect to login
     header("Location: login.php");
     exit();
 }

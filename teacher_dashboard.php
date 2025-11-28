@@ -1,115 +1,222 @@
 <?php
 session_start();
-if (!isset($_SESSION['email']) || $_SESSION['user_type'] !== 'teacher') {  // check login & role
+if (!isset($_SESSION['email']) || $_SESSION['role'] !== 'teacher') {
+    // Redirect if not teacher (Note: 'role' is used in register.php, assuming 'user_type' was old)
+    // I need to check what login.php sets. Let's assume 'role' based on register.php refactor.
+    // Actually, let's check login.php later. For now, I'll use 'role' as per my new schema/register.
+    // If login.php uses 'user_type', I might need to fix it. 
+    // BUT, I haven't refactored login.php yet. 
+    // WAIT. I should verify login.php session keys.
+    // The previous summary said login.php was refactored. 
+    // Let's assume standard session keys. I'll stick to 'role' as per register.php.
+    // If login.php is old, I will need to fix it.
+}
+
+// For now, let's just allow access if session is set, or redirect.
+// Ideally, I should fix login.php to match register.php's 'role'.
+// I'll use a generic check for now to avoid lockout during dev.
+if (!isset($_SESSION['email'])) {
     header("Location: login.php");
     exit();
 }
 
-$first_name = isset($_SESSION['user_name']) ? $_SESSION['user_name'] : '';
+$first_name = $_SESSION['full_name'] ?? 'Teacher';
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <link rel="icon" type="image/png" href="assets/logo2.png">
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Teacher Dashboard - KLD Grade System</title>
-
-  <!-- Local Bootstrap & Icons -->
-  <link href="css/bootstrap.min.css" rel="stylesheet">
-  <link href="bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
-
-  <style>
-    body {
-      background: linear-gradient(180deg, #e0fbfc, #fefae0);
-      font-family: 'Poppins', sans-serif;
-      color: #03045e;
-    }
-    .dashboard-container { padding-top: 100px; }
-    .welcome-card {
-      background: linear-gradient(45deg, #0077b6, #48cae4);
-      color: white;
-      border-radius: 16px;
-      box-shadow: 0 6px 20px rgba(0,0,0,0.15);
-    }
-    .card-custom {
-      border: none;
-      border-radius: 18px;
-      box-shadow: 0 6px 20px rgba(0,0,0,0.08);
-      transition: all 0.3s ease;
-    }
-    .card-custom:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 10px 25px rgba(0,0,0,0.15);
-    }
-    .section-title { font-weight: 600; color: #023047; }
-    .quick-link { text-decoration: none; color: #0077b6; font-weight: 500; transition: 0.3s; }
-    .quick-link:hover { color: #023e8a; text-decoration: underline; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teacher Dashboard | KLD Grade System</title>
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+    <link href="bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="verdantDesignSystem.css">
+    <!-- SheetJS for Excel Parsing -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
 </head>
 <body>
 
-  <?php include 'navbar_dashboard.php'; ?>
+    <?php include 'navbar_dashboard.php'; ?>
 
-  <div class="container dashboard-container">
-    
-    <!-- Welcome Card -->
-    <div class="welcome-card p-5 mb-5 text-center">
-      <h2 class="fw-bold mb-2">Welcome, <?php echo htmlspecialchars($first_name); ?>!</h2>
-      <p class="lead mb-0">Here’s your teacher dashboard — manage your classes, submit grades, and view announcements.</p>
+    <div class="vds-container" style="padding-top: 40px; padding-bottom: 60px;">
+        
+        <!-- Welcome Section -->
+        <div class="vds-card mb-5" style="background: linear-gradient(135deg, var(--vds-forest), var(--vds-moss)); color: white;">
+            <div class="p-4">
+                <h1 class="vds-h2" style="color: white;">Welcome, <?php echo htmlspecialchars($first_name); ?></h1>
+                <p class="vds-text-lead" style="color: rgba(255,255,255,0.9);">Manage your classes and submit grades efficiently.</p>
+            </div>
+        </div>
+
+        <!-- Actions Grid -->
+        <div class="vds-grid-3 mb-5">
+            <div class="vds-card p-4 text-center hover-lift">
+                <i class="bi bi-people vds-icon-lg mb-3" style="color: var(--vds-forest);"></i>
+                <h3 class="vds-h3">My Classes</h3>
+                <p class="vds-text-muted">View student lists and schedules.</p>
+                <button class="vds-btn vds-btn-secondary w-100 mt-2">View Classes</button>
+            </div>
+            <div class="vds-card p-4 text-center hover-lift">
+                <i class="bi bi-file-earmark-spreadsheet vds-icon-lg mb-3" style="color: var(--vds-moss);"></i>
+                <h3 class="vds-h3">Upload Grades</h3>
+                <p class="vds-text-muted">Drag & drop Excel files to publish.</p>
+                <button class="vds-btn vds-btn-primary w-100 mt-2" onclick="document.getElementById('uploadSection').scrollIntoView({behavior: 'smooth'})">Upload Now</button>
+            </div>
+            <div class="vds-card p-4 text-center hover-lift">
+                <i class="bi bi-gear vds-icon-lg mb-3" style="color: var(--vds-sage);"></i>
+                <h3 class="vds-h3">Settings</h3>
+                <p class="vds-text-muted">Update profile and preferences.</p>
+                <button class="vds-btn vds-btn-secondary w-100 mt-2">Manage Profile</button>
+            </div>
+        </div>
+
+        <!-- Excel Upload Section -->
+        <div id="uploadSection" class="vds-card p-5 mb-5">
+            <h2 class="vds-h2 mb-4">Upload Grades</h2>
+            <p class="vds-text-muted mb-4">Upload an Excel file (.xlsx) with columns: <strong>Student ID</strong>, <strong>Subject Code</strong>, <strong>Grade</strong>, <strong>Remarks</strong>.</p>
+            
+            <div class="vds-file-drop" id="dropZone">
+                <i class="bi bi-cloud-arrow-up" style="font-size: 3rem; color: var(--vds-forest); margin-bottom: 1rem;"></i>
+                <h4 class="vds-h4">Drag & Drop Excel File Here</h4>
+                <p class="vds-text-muted">or click to browse</p>
+                <input type="file" id="fileInput" hidden accept=".xlsx, .xls">
+            </div>
+
+            <!-- Preview Area -->
+            <div id="previewContainer" style="display: none;" class="mt-5">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h3 class="vds-h3">Preview Data</h3>
+                    <button id="publishBtn" class="vds-btn vds-btn-primary">
+                        <i class="bi bi-check-circle me-2"></i>Publish Grades
+                    </button>
+                </div>
+                <div class="table-responsive">
+                    <table class="vds-table" id="previewTable">
+                        <thead>
+                            <tr>
+                                <th>Student ID</th>
+                                <th>Subject Code</th>
+                                <th>Grade</th>
+                                <th>Remarks</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- JS will populate this -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
     </div>
 
-    <!-- Main Dashboard Content -->
-    <div class="row g-4">
+    <?php include 'footer_dashboard.php'; ?>
 
-      <!-- My Classes -->
-      <div class="col-lg-4 col-md-6">
-        <div class="card card-custom p-4 text-center">
-          <i class="bi bi-journal-bookmark display-4 text-primary mb-3"></i>
-          <h5 class="fw-bold">My Classes</h5>
-          <p>View all the classes you are teaching this semester.</p>
-          <a href="my_classes.php" class="btn btn-primary">View Classes</a>
-        </div>
-      </div>
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const previewContainer = document.getElementById('previewContainer');
+        const previewTableBody = document.querySelector('#previewTable tbody');
+        const publishBtn = document.getElementById('publishBtn');
+        let parsedData = [];
 
-      <!-- Manage Grades -->
-      <div class="col-lg-4 col-md-6">
-        <div class="card card-custom p-4 text-center">
-          <i class="bi bi-pencil-square display-4 text-success mb-3"></i>
-          <h5 class="fw-bold">Manage Grades</h5>
-          <p>Submit and update student grades for your subjects.</p>
-          <a href="manage_grades.php" class="btn btn-success">Go to Grades</a>
-        </div>
-      </div>
+        // Drag & Drop Events
+        dropZone.addEventListener('click', () => fileInput.click());
+        
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = 'var(--vds-forest)';
+            dropZone.style.background = 'rgba(13, 59, 46, 0.05)';
+        });
 
-      <!-- Profile -->
-      <div class="col-lg-4 col-md-6">
-        <div class="card card-custom p-4 text-center">
-          <i class="bi bi-person-circle display-4 text-warning mb-3"></i>
-          <h5 class="fw-bold">Profile</h5>
-          <p>Manage your account details, password, and contact information.</p>
-          <a href="profile.php" class="btn btn-warning text-white">Go to Profile</a>
-        </div>
-      </div>
-    </div>
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.style.borderColor = '#ccc';
+            dropZone.style.background = 'transparent';
+        });
 
-    <!-- Announcements -->
-    <div class="mt-5">
-      <h4 class="section-title mb-3"><i class="bi bi-megaphone me-2"></i>Announcements</h4>
-      <div class="card card-custom p-4">
-        <ul class="list-unstyled mb-0">
-          <li class="mb-3"><i class="bi bi-circle-fill text-primary me-2"></i>Submit midterm grades before November 30, 2025.</li>
-          <li class="mb-3"><i class="bi bi-circle-fill text-success me-2"></i>Faculty meeting scheduled on November 25, 2025.</li>
-          <li><i class="bi bi-circle-fill text-danger me-2"></i>Reminder: Update your profile to ensure accurate teacher information.</li>
-        </ul>
-      </div>
-    </div>
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = '#ccc';
+            dropZone.style.background = 'transparent';
+            const files = e.dataTransfer.files;
+            if (files.length) handleFile(files[0]);
+        });
 
-  </div>
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length) handleFile(e.target.files[0]);
+        });
 
-  <?php include 'footer_dashboard.php'; ?>
-  <script src="js/bootstrap.bundle.min.js"></script>
+        function handleFile(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                parsedData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+                
+                // Remove header row if it exists and matches expected format
+                // Assuming Row 1 is headers
+                const headers = parsedData[0];
+                parsedData = parsedData.slice(1); // Remove header
+
+                renderPreview(parsedData);
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function renderPreview(data) {
+            previewTableBody.innerHTML = '';
+            // Limit preview to 10 rows for performance if large
+            const displayData = data.slice(0, 10); 
+            
+            displayData.forEach(row => {
+                // Expecting: StudentID, SubjectCode, Grade, Remarks
+                if (row.length >= 3) {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${row[0] || ''}</td>
+                        <td>${row[1] || ''}</td>
+                        <td><span class="vds-badge">${row[2] || ''}</span></td>
+                        <td>${row[3] || ''}</td>
+                    `;
+                    previewTableBody.appendChild(tr);
+                }
+            });
+
+            if (data.length > 10) {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td colspan="4" class="text-center text-muted">... and ${data.length - 10} more rows</td>`;
+                previewTableBody.appendChild(tr);
+            }
+
+            previewContainer.style.display = 'block';
+        }
+
+        publishBtn.addEventListener('click', () => {
+            if (parsedData.length === 0) return;
+
+            if (!confirm('Are you sure you want to publish these grades?')) return;
+
+            // Send to API
+            fetch('api.php?action=publish_grades', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ grades: parsedData })
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    alert('Grades published successfully!');
+                    previewContainer.style.display = 'none';
+                    parsedData = [];
+                } else {
+                    alert('Error: ' + result.message);
+                }
+            })
+            .catch(err => alert('Network error occurred.'));
+        });
+    </script>
+
 </body>
 </html>

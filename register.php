@@ -1,6 +1,6 @@
 <?php
 session_start();
-require 'db_connect.php'; // your database connection
+require 'db_connect.php';
 require 'PHPMailer-7.0.0/src/PHPMailer.php';
 require 'PHPMailer-7.0.0/src/SMTP.php';
 require 'PHPMailer-7.0.0/src/Exception.php';
@@ -8,15 +8,15 @@ require 'PHPMailer-7.0.0/src/Exception.php';
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
-// Function to send OTP
+// Helper: Send OTP
 function sendOTP($email, $otp) {
     $mail = new PHPMailer(true);
     try {
         $mail->isSMTP();
         $mail->Host       = 'smtp.gmail.com';
         $mail->SMTPAuth   = true;
-        $mail->Username   = 'kevinselibio10@gmail.com'; // replace with your email
-        $mail->Password   = 'ruxmlcupgdicyywc';   // replace with Gmail App Password
+        $mail->Username   = 'kevinselibio10@gmail.com'; 
+        $mail->Password   = 'ruxmlcupgdicyywc';   
         $mail->SMTPSecure = 'tls';
         $mail->Port       = 587;
 
@@ -24,234 +24,326 @@ function sendOTP($email, $otp) {
         $mail->addAddress($email);
 
         $mail->isHTML(true);
-        $mail->Subject = 'Your KLD OTP Code';
-        $mail->Body    = "Your OTP code is <b>$otp</b>. It will expire in 10 minutes.";
-
-        $mail->SMTPOptions = [
-            'ssl' => [
-                'verify_peer' => false,
-                'verify_peer_name' => false,
-                'allow_self_signed' => true
-            ]
-        ];
+        $mail->Subject = 'KLD Verification Code';
+        $mail->Body    = "
+            <div style='font-family: Arial, sans-serif; padding: 20px; color: #333;'>
+                <h2 style='color: #0D3B2E;'>Verification Code</h2>
+                <p>Your OTP code is:</p>
+                <h1 style='font-size: 32px; letter-spacing: 5px; color: #0D3B2E;'>$otp</h1>
+                <p>This code will expire in 10 minutes.</p>
+            </div>
+        ";
 
         $mail->send();
         return true;
     } catch (Exception $e) {
-        echo "<script>alert('Failed to send OTP: " . addslashes($mail->ErrorInfo) . "');</script>";
         return false;
     }
 }
 
-// Handle initial registration
-if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['register'])) {
-    $first_name  = trim($_POST['first_name']);
-    $middle_name = trim($_POST['middle_name']);
-    $last_name   = trim($_POST['last_name']);
-    $email       = trim($_POST['email']);
-    $password    = $_POST['password'];
-    $confirm     = $_POST['confirm_password'];
-    $user_type   = 'student'; // default user type
+$step = $_GET['step'] ?? '1';
+$error = '';
+$success = '';
 
-    if ($password !== $confirm) {
-        echo "<script>alert('Passwords do not match');</script>";
+// --- STEP 1: Email & Password ---
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['register_step1'])) {
+    $email = trim($_POST['email']);
+    $password = $_POST['password'];
+    $confirm = $_POST['confirm_password'];
+
+    if (!str_ends_with($email, '@kld.edu.ph')) {
+        $error = "Registration is restricted to @kld.edu.ph emails only.";
+    } elseif ($password !== $confirm) {
+        $error = "Passwords do not match.";
     } else {
-        $check = $conn->prepare("SELECT * FROM users WHERE email = ?");
-        $check->bind_param("s", $email);
-        $check->execute();
-        $result = $check->get_result();
+        // Check if email exists
+        $stmt = $conn->prepare("SELECT id, is_verified FROM users WHERE email = ?");
+        $stmt->bind_param("s", $email);
+        $stmt->execute();
+        $res = $stmt->get_result();
 
-        if ($result->num_rows > 0) {
-            echo "<script>alert('Email already registered!');</script>";
-        } else {
-            $otp = rand(100000, 999999);
-
-            $_SESSION['reg_data'] = [
-                'first_name' => $first_name,
-                'middle_name'=> $middle_name,
-                'last_name'  => $last_name,
-                'email'      => $email,
-                'password'   => password_hash($password, PASSWORD_DEFAULT),
-                'otp'        => $otp,
-                'user_type'  => $user_type,
-              'otp_time'   => time()
-            ];
-
-            // store OTP in database (table `otps`) with 10 minute expiry
-            $created_at = date('Y-m-d H:i:s', time());
-            $expires_at = date('Y-m-d H:i:s', time() + 600); // 10 minutes
-            $stmt_otp = $conn->prepare("INSERT INTO otps (email, otp, created_at, expires_at, used) VALUES (?, ?, ?, ?, 0)");
-            if ($stmt_otp) {
-              $stmt_otp->bind_param("siss", $email, $otp, $created_at, $expires_at);
-              $stmt_otp->execute();
-              $stmt_otp->close();
-            }
-
-            if (sendOTP($email, $otp)) {
-                echo "<script>alert('OTP sent to your email'); window.location.href='register.php?step=otp';</script>";
-                exit();
+        if ($res->num_rows > 0) {
+            $row = $res->fetch_assoc();
+            if ($row['is_verified'] == 1) {
+                $error = "Email already registered. Please login.";
             } else {
-                echo "<script>alert('Failed to send OTP. Check email settings.');</script>";
+                // Resend OTP logic for unverified user
+                $otp = rand(100000, 999999);
+                $expires_at = date('Y-m-d H:i:s', time() + 600);
+                
+                // Update password just in case they forgot it
+                $hashed_pwd = password_hash($password, PASSWORD_DEFAULT);
+                $stmtUpd = $conn->prepare("UPDATE users SET password_hash = ? WHERE email = ?");
+                $stmtUpd->bind_param("ss", $hashed_pwd, $email);
+                $stmtUpd->execute();
+
+                // Insert new OTP
+                $stmtOtp = $conn->prepare("INSERT INTO verification_codes (email, code, expires_at) VALUES (?, ?, ?)");
+                $stmtOtp->bind_param("sss", $email, $otp, $expires_at);
+                $stmtOtp->execute();
+
+                $_SESSION['verify_email'] = $email;
+                if (sendOTP($email, $otp)) {
+                    header("Location: register.php?step=2");
+                    exit();
+                } else {
+                    $error = "Failed to send OTP.";
+                }
+            }
+        } else {
+            // Create new unverified user
+            $hashed_pwd = password_hash($password, PASSWORD_DEFAULT);
+            $stmtIns = $conn->prepare("INSERT INTO users (email, password_hash, is_verified, role) VALUES (?, ?, 0, 'student')");
+            $stmtIns->bind_param("ss", $email, $hashed_pwd);
+            
+            if ($stmtIns->execute()) {
+                // Generate OTP
+                $otp = rand(100000, 999999);
+                $expires_at = date('Y-m-d H:i:s', time() + 600);
+                
+                $stmtOtp = $conn->prepare("INSERT INTO verification_codes (email, code, expires_at) VALUES (?, ?, ?)");
+                $stmtOtp->bind_param("sss", $email, $otp, $expires_at);
+                $stmtOtp->execute();
+
+                $_SESSION['verify_email'] = $email;
+                if (sendOTP($email, $otp)) {
+                    header("Location: register.php?step=2");
+                    exit();
+                } else {
+                    $error = "Failed to send OTP.";
+                }
+            } else {
+                $error = "Database error: " . $conn->error;
             }
         }
-
-        $check->close();
     }
 }
 
-// Handle OTP verification
+// --- STEP 2: Verify OTP ---
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['verify_otp'])) {
-    if (!isset($_SESSION['reg_data'])) {
-        echo "<script>alert('No registration data found.'); window.location.href='register.php';</script>";
+    $entered_otp = trim($_POST['otp']);
+    $email = $_SESSION['verify_email'] ?? '';
+
+    if (empty($email)) {
+        header("Location: register.php");
         exit();
     }
 
-  $entered_otp = trim($_POST['otp']);
-  $reg_data = $_SESSION['reg_data'];
-  $email = $reg_data['email'];
-
-  // Check the latest unused OTP for this email in the DB
-  $entered_otp_int = (int)$entered_otp;
-  $stmt_check = $conn->prepare("SELECT id, otp, expires_at, used FROM otps WHERE email = ? AND otp = ? AND used = 0 ORDER BY id DESC LIMIT 1");
-  if ($stmt_check) {
-    $stmt_check->bind_param("si", $email, $entered_otp_int);
-    $stmt_check->execute();
-    $res = $stmt_check->get_result();
-    $otp_row = $res->fetch_assoc();
-    $stmt_check->close();
-
-    if (!$otp_row) {
-      echo "<script>alert('Incorrect or already-used OTP.');</script>";
-      exit();
-    }
-
-    if (strtotime($otp_row['expires_at']) < time()) {
-      echo "<script>alert('OTP expired. Please register again.'); window.location.href='register.php';</script>";
-      unset($_SESSION['reg_data']);
-      exit();
-    }
-
-    // mark OTP as used
-    $stmt_upd = $conn->prepare("UPDATE otps SET used = 1 WHERE id = ?");
-    if ($stmt_upd) {
-      $stmt_upd->bind_param("i", $otp_row['id']);
-      $stmt_upd->execute();
-      $stmt_upd->close();
-    }
-
-    // insert user record
-    $stmt = $conn->prepare("INSERT INTO users (first_name, middle_name, last_name, email, password, user_type) VALUES (?, ?, ?, ?, ?, ?)");
-    $stmt->bind_param("ssssss", $reg_data['first_name'], $reg_data['middle_name'], $reg_data['last_name'], $reg_data['email'], $reg_data['password'], $reg_data['user_type']);
+    $stmt = $conn->prepare("SELECT * FROM verification_codes WHERE email = ? AND code = ? AND expires_at > NOW()");
+    $stmt->bind_param("ss", $email, $entered_otp);
     $stmt->execute();
+    $result = $stmt->get_result();
 
-    unset($_SESSION['reg_data']);
-    echo "<script>alert('Registration successful! You can now log in.'); window.location.href='login.php';</script>";
-    exit();
-  } else {
-    echo "<script>alert('Server error verifying OTP. Please try again later.');</script>";
-  }
+    if ($result->num_rows > 0) {
+        // Mark verified
+        $stmtUpd = $conn->prepare("UPDATE users SET is_verified = 1 WHERE email = ?");
+        $stmtUpd->bind_param("s", $email);
+        $stmtUpd->execute();
+
+        // Cleanup OTPs
+        $conn->query("DELETE FROM verification_codes WHERE email = '$email'");
+        
+        // Go to Profile Completion
+        header("Location: register.php?step=3");
+        exit();
+    } else {
+        $error = "Invalid or expired OTP.";
+    }
+}
+
+// --- STEP 3: Complete Profile ---
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['complete_profile'])) {
+    $email = $_SESSION['verify_email'] ?? '';
+    if (empty($email)) {
+        // Fallback if session lost, maybe ask to login? 
+        // For now redirect to login
+        header("Location: login.php");
+        exit();
+    }
+
+    $school_id = trim($_POST['school_id']);
+    $first_name = trim($_POST['first_name']);
+    $last_name = trim($_POST['last_name']);
+    $program_id = intval($_POST['program_id']);
+    $full_name = "$first_name $last_name"; // Or keep separate if schema allows
+
+    // Update User
+    $stmt = $conn->prepare("UPDATE users SET school_id = ?, full_name = ?, program_id = ? WHERE email = ?");
+    $stmt->bind_param("ssis", $school_id, $full_name, $program_id, $email);
+    
+    if ($stmt->execute()) {
+        // Auto Login
+        $stmtUser = $conn->prepare("SELECT id, role FROM users WHERE email = ?");
+        $stmtUser->bind_param("s", $email);
+        $stmtUser->execute();
+        $user = $stmtUser->get_result()->fetch_assoc();
+
+        $_SESSION['user_id'] = $user['id'];
+        $_SESSION['email'] = $email;
+        $_SESSION['role'] = $user['role'];
+        $_SESSION['full_name'] = $full_name;
+
+        header("Location: dashboard.php");
+        exit();
+    } else {
+        $error = "Failed to update profile: " . $conn->error;
+    }
 }
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <link rel="icon" type="image/png" href="assets/logo2.png">
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Register | KLD Grade System</title>
-<link href="css/bootstrap.min.css" rel="stylesheet">
-<link href="bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
-<link rel="stylesheet" href="styles.css">
-<style>
-  :root {
-    --primary-color: #0077b6;
-    --secondary-color: #48cae4;
-    --accent-color: #ade8f4;
-    --dark-color: #03045e;
-    --bg-color: #caf0f8;
-  }
-  body { font-family: 'Poppins', sans-serif; background: linear-gradient(135deg, #e0fbfc, #fefae0); min-height: 100vh; display:flex; flex-direction: column; }
-  .register-container { flex-grow:1; display:flex; align-items:center; justify-content:center; padding:80px 20px; }
-  .register-box { background: rgba(255,255,255,0.25); backdrop-filter: blur(15px); border-radius:20px; box-shadow:0 8px 32px rgba(31,38,135,0.15); padding:50px 40px; max-width:500px; width:100%; text-align:center; }
-  .register-box h2 { font-weight:700; color: var(--dark-color); margin-bottom:30px; }
-  .form-control { border-radius:12px; padding:12px; border:1px solid rgba(255,255,255,0.4); background: rgba(255,255,255,0.7); transition:all .3s; }
-  .form-control:focus { box-shadow:0 0 10px var(--accent-color); border-color: var(--secondary-color); }
-  .btn-register { background: linear-gradient(45deg, var(--primary-color), var(--secondary-color)); color:#fff; border:none; border-radius:30px; padding:12px 0; font-weight:600; width:100%; transition:all 0.3s; }
-  .btn-register:hover { transform: scale(1.05); box-shadow:0 0 15px var(--accent-color); }
-  .error-text { color:red; font-size:0.9rem; text-align:left; margin-top:5px; display:none; }
-  .terms-checkbox { font-size:0.9rem; text-align:left; margin-top:10px; }
-  .terms-checkbox input { margin-right:8px; }
-  .terms-checkbox a { color: var(--primary-color); font-weight:500; }
-  .terms-checkbox a:hover { color: var(--secondary-color); text-decoration:underline; }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register | KLD Grade System</title>
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+    <link href="bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="verdantDesignSystem.css">
 </head>
 <body>
 
-<?php include 'navbar.php'; ?>
+    <nav class="vds-navbar">
+        <div class="vds-container vds-nav-content">
+            <a href="index.php" class="vds-brand">
+                <img src="assets/logo2.png" alt="Logo" height="40">
+                KLD Portal
+            </a>
+            <div class="vds-nav-links">
+                <a href="index.php" class="vds-nav-link">Home</a>
+                <a href="login.php" class="vds-btn vds-btn-secondary">Login</a>
+            </div>
+        </div>
+    </nav>
 
-<div class="register-container">
-  <div class="register-box">
-    <?php if(isset($_GET['step']) && $_GET['step'] === 'otp' && isset($_SESSION['reg_data'])): ?>
-      <h2><i class="bi bi-shield-lock-fill"></i> Verify OTP</h2>
-      <form method="post">
-        <div class="mb-3 text-start">
-          <label for="otp" class="form-label fw-semibold">Enter OTP</label>
-          <input type="text" id="otp" name="otp" class="form-control" required>
-        </div>
-        <button type="submit" name="verify_otp" class="btn-register mt-3">Verify OTP</button>
-      </form>
-    <?php else: ?>
-      <h2><i class="bi bi-person-plus-fill"></i> Create an Account</h2>
-      <form method="post" id="registerForm">
-        <div class="mb-3 text-start">
-          <label for="first_name" class="form-label fw-semibold">First Name</label>
-          <input type="text" id="first_name" name="first_name" class="form-control" required>
-        </div>
-        <div class="mb-3 text-start">
-          <label for="middle_name" class="form-label fw-semibold">Middle Name</label>
-          <input type="text" id="middle_name" name="middle_name" class="form-control">
-        </div>
-        <div class="mb-3 text-start">
-          <label for="last_name" class="form-label fw-semibold">Last Name</label>
-          <input type="text" id="last_name" name="last_name" class="form-control" required>
-        </div>
-        <div class="mb-3 text-start">
-          <label for="email" class="form-label fw-semibold">Email</label>
-          <input type="email" id="email" name="email" class="form-control" required>
-        </div>
-        <div class="mb-3 text-start">
-          <label for="password" class="form-label fw-semibold">Password</label>
-          <input type="password" id="password" name="password" class="form-control" required>
-        </div>
-        <div class="mb-3 text-start">
-          <label for="confirm_password" class="form-label fw-semibold">Confirm Password</label>
-          <input type="password" id="confirm_password" name="confirm_password" class="form-control" required>
-          <div id="passwordError" class="error-text">Passwords do not match.</div>
-        </div>
-        <div class="terms-checkbox">
-          <input type="checkbox" id="agreeTerms" name="agreeTerms" required>
-          <label for="agreeTerms">I agree to the <a href="terms.php">Terms & Conditions</a> and <a href="privacy.php">Privacy Policy</a>.</label>
-        </div>
-        <button type="submit" name="register" class="btn-register mt-3">Register</button>
-      </form>
-    <?php endif; ?>
-  </div>
-</div>
+    <div class="vds-section vds-min-h-screen vds-flex-center">
+        <div class="vds-glass" style="width: 100%; max-width: 500px; padding: 40px;">
+            
+            <?php if ($step == '1'): ?>
+                <!-- STEP 1: Create Account -->
+                <div class="text-center mb-4">
+                    <h2 class="vds-h2">Create Account</h2>
+                    <p class="vds-text-muted">Step 1 of 3: Account Credentials</p>
+                </div>
+                <?php if($error): ?><div class="vds-pill vds-pill-fail mb-4 w-100 justify-content-center"><?php echo $error; ?></div><?php endif; ?>
+                
+                <form method="POST">
+                    <div class="vds-form-group">
+                        <label class="vds-label">KLD Email</label>
+                        <input type="email" name="email" class="vds-input" placeholder="student@kld.edu.ph" required>
+                    </div>
+                    <div class="vds-form-group">
+                        <label class="vds-label">Password</label>
+                        <input type="password" name="password" class="vds-input" required>
+                    </div>
+                    <div class="vds-form-group">
+                        <label class="vds-label">Confirm Password</label>
+                        <input type="password" name="confirm_password" class="vds-input" required>
+                    </div>
+                    <button type="submit" name="register_step1" class="vds-btn vds-btn-primary w-100">Next: Verify Email</button>
+                </form>
 
-<?php include 'footer.php'; ?>
+            <?php elseif ($step == '2'): ?>
+                <!-- STEP 2: Verify OTP -->
+                <div class="text-center mb-4">
+                    <h2 class="vds-h2">Verify Email</h2>
+                    <p class="vds-text-muted">Step 2 of 3: Enter the code sent to <strong><?php echo htmlspecialchars($_SESSION['verify_email']); ?></strong></p>
+                </div>
+                <?php if($error): ?><div class="vds-pill vds-pill-fail mb-4 w-100 justify-content-center"><?php echo $error; ?></div><?php endif; ?>
 
-<script src="js/bootstrap.bundle.min.js"></script>
-<script>
-document.getElementById('registerForm')?.addEventListener('submit', function(event) {
-  const password = document.getElementById('password').value;
-  const confirm = document.getElementById('confirm_password').value;
-  if(password !== confirm){
-    document.getElementById('passwordError').style.display='block';
-    event.preventDefault();
-  }
-});
-</script>
+                <form method="POST">
+                    <div class="vds-form-group">
+                        <input type="text" name="otp" class="vds-input text-center" style="font-size: 1.5rem; letter-spacing: 5px;" placeholder="######" maxlength="6" required>
+                    </div>
+                    <button type="submit" name="verify_otp" class="vds-btn vds-btn-primary w-100">Verify Code</button>
+                </form>
+                <div class="text-center mt-3">
+                    <a href="register.php?step=1" class="vds-text-muted small">Wrong email? Start over</a>
+                </div>
+
+            <?php elseif ($step == '3'): ?>
+                <!-- STEP 3: Complete Profile -->
+                <div class="text-center mb-4">
+                    <h2 class="vds-h2">Complete Profile</h2>
+                    <p class="vds-text-muted">Step 3 of 3: Student Information</p>
+                </div>
+                <?php if($error): ?><div class="vds-pill vds-pill-fail mb-4 w-100 justify-content-center"><?php echo $error; ?></div><?php endif; ?>
+
+                <form method="POST">
+                    <div class="vds-form-group">
+                        <label class="vds-label">Student ID</label>
+                        <input type="text" name="school_id" class="vds-input" placeholder="KLD-2024-XXXX" required>
+                    </div>
+                    <div class="vds-grid-2">
+                        <div class="vds-form-group">
+                            <label class="vds-label">First Name</label>
+                            <input type="text" name="first_name" class="vds-input" required>
+                        </div>
+                        <div class="vds-form-group">
+                            <label class="vds-label">Last Name</label>
+                            <input type="text" name="last_name" class="vds-input" required>
+                        </div>
+                    </div>
+                    
+                    <div class="vds-form-group">
+                        <label class="vds-label">Institute</label>
+                        <select id="instituteSelect" class="vds-select" required>
+                            <option value="">Select Institute</option>
+                        </select>
+                    </div>
+                    <div class="vds-form-group">
+                        <label class="vds-label">Program</label>
+                        <select id="programSelect" name="program_id" class="vds-select" required disabled>
+                            <option value="">Select Program</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" name="complete_profile" class="vds-btn vds-btn-primary w-100">Finish Registration</button>
+                </form>
+
+            <?php endif; ?>
+
+        </div>
+    </div>
+
+    <script>
+        // API Integration for Dropdowns (Only needed for Step 3)
+        if (document.getElementById('instituteSelect')) {
+            const instituteSelect = document.getElementById('instituteSelect');
+            const programSelect = document.getElementById('programSelect');
+
+            fetch('api.php?action=get_institutes')
+                .then(response => response.json())
+                .then(data => {
+                    data.forEach(inst => {
+                        const option = document.createElement('option');
+                        option.value = inst.id;
+                        option.textContent = inst.code + ' - ' + inst.name;
+                        instituteSelect.appendChild(option);
+                    });
+                });
+
+            instituteSelect.addEventListener('change', function() {
+                const instId = this.value;
+                programSelect.innerHTML = '<option value="">Select Program</option>';
+                programSelect.disabled = true;
+
+                if (instId) {
+                    fetch(`api.php?action=get_programs&institute_id=${instId}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            data.forEach(prog => {
+                                const option = document.createElement('option');
+                                option.value = prog.id;
+                                option.textContent = prog.code + ' - ' + prog.name;
+                                programSelect.appendChild(option);
+                            });
+                            programSelect.disabled = false;
+                        });
+                }
+            });
+        }
+    </script>
 
 </body>
 </html>

@@ -1,172 +1,183 @@
+<?php
+session_start();
+require 'db_connect.php';
+require 'PHPMailer-7.0.0/src/PHPMailer.php';
+require 'PHPMailer-7.0.0/src/SMTP.php';
+require 'PHPMailer-7.0.0/src/Exception.php';
+
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
+
+function sendResetOTP($email, $otp) {
+    $mail = new PHPMailer(true);
+    try {
+        $mail->isSMTP();
+        $mail->Host       = 'smtp.gmail.com';
+        $mail->SMTPAuth   = true;
+        $mail->Username   = 'kevinselibio10@gmail.com'; 
+        $mail->Password   = 'ruxmlcupgdicyywc';   
+        $mail->SMTPSecure = 'tls';
+        $mail->Port       = 587;
+        $mail->setFrom('kevinselibio10@gmail.com', 'KLD Grade System');
+        $mail->addAddress($email);
+        $mail->isHTML(true);
+        $mail->Subject = 'Password Reset Code';
+        $mail->Body    = "Your password reset code is <b>$otp</b>. Expires in 10 minutes.";
+        $mail->send();
+        return true;
+    } catch (Exception $e) {
+        return false;
+    }
+}
+
+$step = $_GET['step'] ?? '1';
+$error = '';
+$success = '';
+
+// Step 1: Request OTP
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['request_reset'])) {
+    $email = trim($_POST['email']);
+    
+    $stmt = $conn->prepare("SELECT id FROM users WHERE email = ?");
+    $stmt->bind_param("s", $email);
+    $stmt->execute();
+    if ($stmt->get_result()->num_rows > 0) {
+        $otp = rand(100000, 999999);
+        $expires_at = date('Y-m-d H:i:s', time() + 600);
+        
+        $stmtOtp = $conn->prepare("INSERT INTO verification_codes (email, code, expires_at) VALUES (?, ?, ?)");
+        $stmtOtp->bind_param("sss", $email, $otp, $expires_at);
+        $stmtOtp->execute();
+        
+        $_SESSION['reset_email'] = $email;
+        if (sendResetOTP($email, $otp)) {
+            header("Location: forgot.php?step=2");
+            exit();
+        } else {
+            $error = "Failed to send email.";
+        }
+    } else {
+        $error = "Email not found.";
+    }
+}
+
+// Step 2: Verify OTP
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['verify_otp'])) {
+    $otp = trim($_POST['otp']);
+    $email = $_SESSION['reset_email'] ?? '';
+    
+    $stmt = $conn->prepare("SELECT * FROM verification_codes WHERE email = ? AND code = ? AND expires_at > NOW()");
+    $stmt->bind_param("ss", $email, $otp);
+    $stmt->execute();
+    if ($stmt->get_result()->num_rows > 0) {
+        $_SESSION['reset_verified'] = true;
+        header("Location: forgot.php?step=3");
+        exit();
+    } else {
+        $error = "Invalid or expired OTP.";
+    }
+}
+
+// Step 3: Reset Password
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['reset_password'])) {
+    if (!isset($_SESSION['reset_verified']) || !$_SESSION['reset_verified']) {
+        header("Location: forgot.php");
+        exit();
+    }
+    
+    $pass = $_POST['password'];
+    $confirm = $_POST['confirm_password'];
+    $email = $_SESSION['reset_email'];
+    
+    if ($pass === $confirm) {
+        $hashed = password_hash($pass, PASSWORD_DEFAULT);
+        $stmt = $conn->prepare("UPDATE users SET password_hash = ? WHERE email = ?");
+        $stmt->bind_param("ss", $hashed, $email);
+        $stmt->execute();
+        
+        // Cleanup
+        $conn->query("DELETE FROM verification_codes WHERE email = '$email'");
+        session_destroy();
+        
+        echo "<script>alert('Password reset successful! Please login.'); window.location.href='login.php';</script>";
+    } else {
+        $error = "Passwords do not match.";
+    }
+}
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <link rel="icon" type="image/png" href="assets/logo2.png">
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Forgot Password | KLD Grade System</title>
-
-  <!-- Bootstrap CSS -->
-  <link href="css/bootstrap.min.css" rel="stylesheet">
-  <link href="bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
-
-  <style>
-    :root {
-      --primary-color: #0077b6;
-      --secondary-color: #48cae4;
-      --accent-color: #ade8f4;
-      --dark-color: #03045e;
-      --bg-color: #caf0f8;
-    }
-
-    /* Flex column layout so footer sticks to bottom */
-    body {
-      font-family: 'Poppins', sans-serif;
-      background: linear-gradient(135deg, #e0fbfc, #fefae0);
-      color: var(--dark-color);
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      margin: 0;
-    }
-
-    /* Main content wrapper */
-    .main-content {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 80px 20px;
-    }
-
-    .forgot-box {
-      background: rgba(255, 255, 255, 0.25);
-      backdrop-filter: blur(15px);
-      -webkit-backdrop-filter: blur(15px);
-      border-radius: 20px;
-      box-shadow: 0 8px 32px rgba(31,38,135,0.15);
-      padding: 50px 40px;
-      max-width: 450px;
-      width: 100%;
-      text-align: center;
-    }
-
-    .forgot-box h2 {
-      font-weight: 700;
-      color: var(--dark-color);
-      margin-bottom: 30px;
-    }
-
-    .form-control {
-      border-radius: 12px;
-      padding: 12px;
-      border: 1px solid rgba(255,255,255,0.4);
-      background: rgba(255,255,255,0.7);
-      transition: all .3s;
-    }
-
-    .form-control:focus {
-      box-shadow: 0 0 10px var(--accent-color);
-      border-color: var(--secondary-color);
-    }
-
-    .btn-reset {
-      background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
-      color: #fff;
-      border: none;
-      border-radius: 30px;
-      padding: 12px 0;
-      font-weight: 600;
-      width: 100%;
-      transition: all 0.3s;
-    }
-
-    .btn-reset:hover {
-      transform: scale(1.05);
-      box-shadow: 0 0 15px var(--accent-color);
-    }
-
-    .forgot-box a {
-      color: var(--primary-color);
-      text-decoration: none;
-      transition: color .3s;
-    }
-
-    .forgot-box a:hover {
-      color: var(--secondary-color);
-      text-decoration: underline;
-    }
-
-    .alert {
-      text-align: left;
-      font-size: 0.9rem;
-      margin-bottom: 20px;
-      padding: 10px 15px;
-      border-radius: 10px;
-    }
-
-    @media (max-width: 576px) {
-      .forgot-box {
-        padding: 40px 25px;
-      }
-    }
-
-    /* Footer sticks to bottom */
-    footer {
-      margin-top: auto;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Forgot Password | KLD Grade System</title>
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="verdantDesignSystem.css">
 </head>
 <body>
-  <?php include 'navbar.php'; ?>
-
-  <div class="main-content">
-    <div class="forgot-box">
-      <h2><i class="bi bi-key-fill"></i> Forgot Your Password?</h2>
-
-      <!-- Placeholder for success message -->
-      <div id="message" class="alert alert-info" style="display:none;"></div>
-
-      <form id="forgotForm">
-        <div class="mb-3 text-start">
-          <label for="email" class="form-label fw-semibold">Email</label>
-          <input type="email" id="email" class="form-control" placeholder="Enter your registered email" required>
+    <nav class="vds-navbar">
+        <div class="vds-container vds-nav-content">
+            <a href="index.php" class="vds-brand">
+                <img src="assets/logo2.png" alt="Logo" height="40">
+                KLD Portal
+            </a>
+            <div class="vds-nav-links">
+                <a href="login.php" class="vds-btn vds-btn-secondary">Back to Login</a>
+            </div>
         </div>
-        <button type="submit" class="btn-reset mt-2">Send Reset Link</button>
-      </form>
+    </nav>
 
-      <div class="mt-4">
-        <p>Remembered your password? <a href="login.php">Login here</a></p>
-        <p>Don't have an account? <a href="register.php">Register here</a></p>
-      </div>
+    <div class="vds-section vds-min-h-screen vds-flex-center">
+        <div class="vds-glass" style="width: 100%; max-width: 500px; padding: 40px;">
+            
+            <?php if ($step == '1'): ?>
+                <div class="text-center mb-4">
+                    <h2 class="vds-h2">Forgot Password</h2>
+                    <p class="vds-text-muted">Enter your email to receive a reset code.</p>
+                </div>
+                <?php if($error): ?><div class="vds-pill vds-pill-fail mb-4 w-100 justify-content-center"><?php echo $error; ?></div><?php endif; ?>
+                <form method="POST">
+                    <div class="vds-form-group">
+                        <label class="vds-label">Email Address</label>
+                        <input type="email" name="email" class="vds-input" required>
+                    </div>
+                    <button type="submit" name="request_reset" class="vds-btn vds-btn-primary w-100">Send Code</button>
+                </form>
 
-      <div class="terms-links mt-3">
-        <p>By using this service, you agree to our 
-          <a href="terms.php">Terms & Conditions</a>
-        </p>
-      </div>
+            <?php elseif ($step == '2'): ?>
+                <div class="text-center mb-4">
+                    <h2 class="vds-h2">Verify Code</h2>
+                    <p class="vds-text-muted">Enter the code sent to your email.</p>
+                </div>
+                <?php if($error): ?><div class="vds-pill vds-pill-fail mb-4 w-100 justify-content-center"><?php echo $error; ?></div><?php endif; ?>
+                <form method="POST">
+                    <div class="vds-form-group">
+                        <input type="text" name="otp" class="vds-input text-center" style="font-size: 1.5rem; letter-spacing: 5px;" placeholder="######" required>
+                    </div>
+                    <button type="submit" name="verify_otp" class="vds-btn vds-btn-primary w-100">Verify</button>
+                </form>
+
+            <?php elseif ($step == '3'): ?>
+                <div class="text-center mb-4">
+                    <h2 class="vds-h2">New Password</h2>
+                    <p class="vds-text-muted">Create a new secure password.</p>
+                </div>
+                <?php if($error): ?><div class="vds-pill vds-pill-fail mb-4 w-100 justify-content-center"><?php echo $error; ?></div><?php endif; ?>
+                <form method="POST">
+                    <div class="vds-form-group">
+                        <label class="vds-label">New Password</label>
+                        <input type="password" name="password" class="vds-input" required>
+                    </div>
+                    <div class="vds-form-group">
+                        <label class="vds-label">Confirm Password</label>
+                        <input type="password" name="confirm_password" class="vds-input" required>
+                    </div>
+                    <button type="submit" name="reset_password" class="vds-btn vds-btn-primary w-100">Reset Password</button>
+                </form>
+            <?php endif; ?>
+
+        </div>
     </div>
-  </div>
-
-  <?php include 'footer.php'; ?>
-
-  <script>
-    const form = document.getElementById('forgotForm');
-    const message = document.getElementById('message');
-
-    form.addEventListener('submit', function(e) {
-      e.preventDefault();
-      const email = document.getElementById('email').value;
-
-      // Show fake success message
-      message.style.display = 'block';
-      message.textContent = `If an account with ${email} exists, a password reset link has been sent.`;
-      message.className = 'alert alert-info';
-
-      // Clear the form
-      form.reset();
-    });
-  </script>
 </body>
 </html>

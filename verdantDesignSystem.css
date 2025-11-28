@@ -1,0 +1,424 @@
+/* verdantDesignSystem.css - The Single Source of Truth */
+
+:root {
+  /* --- 1. Color Palette --- */
+  --vds-forest: #0d3b2e; /* Primary / Text */
+  --vds-forest-light: #1a4d3e; /* Hover States */
+  --vds-sage: #e8f5e9; /* Secondary Backgrounds */
+  --vds-yellow: #f4d35e; /* Accents / Alerts */
+  --vds-coral: #ef5350; /* Errors / Danger */
+  --vds-white: #ffffff;
+  --vds-vapor: #f3f4f6; /* Page Background */
+  --vds-text-muted: #6b7280;
+
+  /* --- 2. Glassmorphism Tokens --- */
+  --vds-glass-bg: rgba(255, 255, 255, 0.85);
+  --vds-glass-border: rgba(255, 255, 255, 0.6);
+  --vds-glass-shadow: 0 8px 32px 0 rgba(13, 59, 46, 0.05);
+  --vds-blur: 20px;
+
+  /* --- 3. Structure --- */
+  --vds-radius-lg: 24px; /* Bento Cards */
+  --vds-radius-md: 12px; /* Buttons / Inputs */
+  --vds-radius-sm: 8px; /* Small Tags */
+  --vds-font-main: "Inter", sans-serif;
+  --vds-max-width: 1400px;
+}
+
+/* --- Base Reset --- */
+* {
+  box-sizing: border-box;
+}
+body {
+  font-family: var(--vds-font-main);
+  background-color: var(--vds-vapor);
+  color: var(--vds-forest);
+  line-height: 1.6;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+  transition: 0.2s;
+}
+ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* --- Layout Utilities --- */
+.vds-container {
+  max-width: var(--vds-max-width);
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.vds-section {
+  padding: 80px 0;
+}
+
+.vds-min-h-screen {
+  min-height: 100vh;
+}
+
+.vds-flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.vds-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+}
+.vds-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 32px;
+}
+.vds-grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+}
+
+@media (max-width: 1024px) {
+  .vds-grid-3,
+  .vds-grid-4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 768px) {
+  .vds-grid-2,
+  .vds-grid-3,
+  .vds-grid-4 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* --- VDS Components --- */
+
+/* 1. The Glass Panel (Bento Card) */
+.vds-glass {
+  background: var(--vds-glass-bg);
+  backdrop-filter: blur(var(--vds-blur));
+  -webkit-backdrop-filter: blur(var(--vds-blur));
+  border: 1px solid var(--vds-glass-border);
+  box-shadow: var(--vds-glass-shadow);
+  border-radius: var(--vds-radius-lg);
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.vds-glass:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 40px 0 rgba(13, 59, 46, 0.08);
+}
+
+/* Subtle Variants requested by user */
+.vds-card {
+  background: #ffffff;
+  border: 1px solid rgba(13, 59, 46, 0.08); /* Subtle border */
+  border-radius: var(--vds-radius-md); /* Subtle radius */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03); /* Subtle shadow */
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+.vds-card:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+  transform: translateY(-2px);
+}
+
+/* 2. Buttons */
+.vds-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 24px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  border-radius: var(--vds-radius-md);
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+.vds-btn-primary {
+  background-color: var(--vds-forest);
+  color: var(--vds-white);
+}
+.vds-btn-primary:hover {
+  background-color: var(--vds-forest-light);
+  color: var(--vds-white);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(13, 59, 46, 0.2);
+}
+.vds-btn-secondary {
+  background-color: transparent;
+  border: 1px solid rgba(13, 59, 46, 0.2);
+  color: var(--vds-forest);
+}
+.vds-btn-secondary:hover {
+  background-color: rgba(13, 59, 46, 0.05);
+  border-color: var(--vds-forest);
+}
+.vds-btn-accent {
+  background-color: var(--vds-yellow);
+  color: var(--vds-forest);
+  font-weight: 700;
+}
+.vds-btn-accent:hover {
+  filter: brightness(1.05);
+}
+
+/* 3. Typography Helpers */
+.vds-h1 {
+  font-size: 3rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  color: var(--vds-forest);
+}
+.vds-h2 {
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--vds-forest);
+  margin-bottom: 1rem;
+}
+.vds-h3 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--vds-forest);
+  margin-bottom: 0.5rem;
+}
+.vds-text-lead {
+  font-size: 1.125rem;
+  color: var(--vds-text-muted);
+  line-height: 1.6;
+}
+.vds-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.8;
+  font-weight: 700;
+  color: var(--vds-forest);
+  margin-bottom: 8px;
+  display: block;
+}
+
+/* 4. Form Elements */
+.vds-form-group {
+  margin-bottom: 20px;
+}
+.vds-input,
+.vds-select {
+  width: 100%;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(13, 59, 46, 0.15);
+  border-radius: var(--vds-radius-md);
+  color: var(--vds-forest);
+  font-family: var(--vds-font-main);
+  font-size: 1rem;
+  transition: all 0.2s;
+}
+.vds-input:focus,
+.vds-select:focus {
+  outline: none;
+  background: #ffffff;
+  border-color: var(--vds-forest);
+  box-shadow: 0 0 0 3px rgba(13, 59, 46, 0.1);
+}
+
+/* 5. Status Pills */
+.vds-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 99px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.vds-pill-pass {
+  background: var(--vds-sage);
+  color: var(--vds-forest);
+}
+.vds-pill-warn {
+  background: rgba(244, 211, 94, 0.2);
+  color: #b49018;
+}
+.vds-pill-fail {
+  background: rgba(239, 83, 80, 0.1);
+  color: var(--vds-coral);
+}
+
+/* 6. Modals (Custom Minimalist) */
+.vds-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(13, 59, 46, 0.4);
+  backdrop-filter: blur(4px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.vds-modal-overlay.active {
+  display: flex;
+  opacity: 1;
+}
+
+.vds-modal {
+  background: #ffffff;
+  width: 90%;
+  max-width: 600px;
+  border-radius: var(--vds-radius-lg);
+  padding: 40px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+  transform: translateY(20px);
+  transition: transform 0.3s ease;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.vds-modal-overlay.active .vds-modal {
+  transform: translateY(0);
+}
+
+.vds-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+.vds-modal-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: var(--vds-text-muted);
+}
+.vds-modal-close:hover {
+  color: var(--vds-forest);
+}
+
+/* 7. Drag & Drop Zone */
+.vds-drop-zone {
+  border: 2px dashed rgba(13, 59, 46, 0.2);
+  border-radius: var(--vds-radius-lg);
+  padding: 60px;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.5);
+  transition: all 0.3s;
+  cursor: pointer;
+}
+.vds-drop-zone:hover,
+.vds-drop-zone.dragover {
+  border-color: var(--vds-forest);
+  background: rgba(232, 245, 233, 0.5);
+}
+.vds-drop-zone i {
+  font-size: 48px;
+  color: var(--vds-forest);
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+/* 8. Tables */
+.vds-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.vds-table th {
+  text-align: left;
+  padding: 16px;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--vds-text-muted);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+.vds-table td {
+  padding: 16px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  color: var(--vds-forest);
+}
+.vds-table tr:last-child td {
+  border-bottom: none;
+}
+
+/* 9. Navbar */
+.vds-navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  padding: 16px 0;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  z-index: 100;
+}
+.vds-nav-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.vds-brand {
+  font-weight: 800;
+  font-size: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.vds-nav-links {
+  display: flex;
+  gap: 32px;
+  align-items: center;
+}
+.vds-nav-link {
+  font-weight: 500;
+  font-size: 0.95rem;
+  color: var(--vds-text-muted);
+}
+.vds-nav-link:hover {
+  color: var(--vds-forest);
+}
+
+/* 10. Footer */
+.vds-footer {
+  background: #ffffff;
+  padding: 60px 0 30px;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+  margin-top: 80px;
+}
+
+/* Utilities */
+.text-center {
+  text-align: center;
+}
+.mb-4 {
+  margin-bottom: 1.5rem;
+}
+.mt-4 {
+  margin-top: 1.5rem;
+}
+.d-none {
+  display: none;
+}
+.w-100 {
+  width: 100%;
+}

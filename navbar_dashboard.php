@@ -1,40 +1,25 @@
 <?php
-// Make sure session is started
 if (session_status() == PHP_SESSION_NONE) {
     session_start();
 }
-
-$first_name = isset($_SESSION['first_name']) ? $_SESSION['first_name'] : '';
 ?>
-
-<nav class="navbar navbar-expand-lg navbar-light bg-light fixed-top shadow-sm">
-  <div class="container">
-    <a class="navbar-brand d-flex align-items-center" href="dashboard.php">
-      <img src="assets/logo.png" alt="Logo" width="40" height="40" class="me-2">
-      Grade Portal
-    </a>
-
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarDashboard">
-      <span class="navbar-toggler-icon"></span>
-    </button>
-
-    <div class="collapse navbar-collapse justify-content-end" id="navbarDashboard">
-      <ul class="navbar-nav align-items-lg-center">
-        <li class="nav-item">
-          <a class="nav-link" href="grades.php">Grades</a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" href="profile.php">Profile</a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" href="announcements.php">Announcements</a>
-        </li>
-         <li class="nav-item">
-         <li><a class="dropdown-item text-danger" href="logout.php">Logout</a></li>
-           </li>
-          </ul>
-        </li>
-      </ul>
+<nav class="vds-navbar">
+    <div class="vds-container vds-nav-content">
+        <a href="<?php echo ($_SESSION['role'] === 'teacher') ? 'teacher_dashboard.php' : 'dashboard.php'; ?>" class="vds-brand">
+            <img src="assets/logo2.png" alt="Logo" height="40">
+            KLD Portal
+        </a>
+        <div class="vds-nav-links">
+            <?php if(isset($_SESSION['role']) && $_SESSION['role'] === 'teacher'): ?>
+                <a href="teacher_dashboard.php" class="vds-nav-link">Dashboard</a>
+                <a href="manage_grades.php" class="vds-nav-link">Grades</a>
+            <?php else: ?>
+                <a href="dashboard.php" class="vds-nav-link">Dashboard</a>
+                <a href="grades.php" class="vds-nav-link">My Grades</a>
+            <?php endif; ?>
+            
+            <a href="profile.php" class="vds-nav-link">Profile</a>
+            <a href="logout.php" class="vds-btn vds-btn-secondary" style="padding: 8px 20px;">Logout</a>
+        </div>
     </div>
-  </div>
 </nav>

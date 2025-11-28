@@ -1,18 +1,16 @@
 <!-- Navbar -->
-  <nav class="navbar navbar-expand-lg fixed-top">
-    <div class="container">
-      <a class="navbar-brand" href="index.php#mainCarousel"> <img src="assets/logo2.png" alt="Logo" height="40" class="me-2">Grade Portal</a>
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-        <span class="navbar-toggler-icon"></span>
-      </button>
-      <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
-        <ul class="navbar-nav align-items-lg-center">
-          <li class="nav-item"><a class="nav-link" href="index.php#about">About</a></li>
-          <li class="nav-item"><a class="nav-link" href="index.php#team">Team</a></li>
-          <li class="nav-item"><a class="nav-link" href="index.php#faq">FAQs</a></li>
-          <li class="nav-item"><a class="nav-link" href="index.php#contact">Contact</a></li>
-          <li class="nav-item ms-3"><a href="login.php" class="btn-login">Login</a></li>
-        </ul>
-      </div>
+<nav class="vds-navbar">
+    <div class="vds-container vds-nav-content">
+        <a href="index.php" class="vds-brand">
+            <img src="assets/logo2.png" alt="Logo" height="40">
+            KLD Portal
+        </a>
+        <div class="vds-nav-links">
+            <a href="index.php#about" class="vds-nav-link">About</a>
+            <a href="index.php#team" class="vds-nav-link">Team</a>
+            <a href="index.php#faq" class="vds-nav-link">FAQs</a>
+            <a href="index.php#contact" class="vds-nav-link">Contact</a>
+            <a href="login.php" class="vds-btn vds-btn-secondary" style="padding: 8px 24px;">Login</a>
+        </div>
     </div>
-  </nav>
+</nav>

@@ -1,115 +1,131 @@
 <?php
 session_start();
-if (!isset($_SESSION['email'])) {  // check login
+require 'db_connect.php';
+
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'student') {
     header("Location: login.php");
     exit();
 }
 
-// Use first_name from session
-$first_name = isset($_SESSION['first_name']) ? $_SESSION['first_name'] : '';
+$user_id = $_SESSION['user_id'];
+$full_name = $_SESSION['full_name'];
+
+// Fetch Grades
+$stmt = $conn->prepare("SELECT * FROM grades WHERE student_id = ? ORDER BY created_at DESC");
+$stmt->bind_param("i", $user_id);
+$stmt->execute();
+$result = $stmt->get_result();
+
+$grades = [];
+$total_grade = 0;
+$count = 0;
+
+while ($row = $result->fetch_assoc()) {
+    $grades[] = $row;
+    $total_grade += $row['grade'];
+    $count++;
+}
+
+$gpa = $count > 0 ? number_format($total_grade / $count, 2) : 'N/A';
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <link rel="icon" type="image/png" href="assets/logo2.png">
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Dashboard - KLD Grade System</title>
-
-  <!-- Local Bootstrap & Icons -->
-  <link href="css/bootstrap.min.css" rel="stylesheet">
-  <link href="bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
-
-  <style>
-    body {
-      background: linear-gradient(180deg, #e0fbfc, #fefae0);
-      font-family: 'Poppins', sans-serif;
-      color: #03045e;
-    }
-    .dashboard-container { padding-top: 100px; }
-    .welcome-card {
-      background: linear-gradient(45deg, #0077b6, #48cae4);
-      color: white;
-      border-radius: 16px;
-      box-shadow: 0 6px 20px rgba(0,0,0,0.15);
-    }
-    .card-custom {
-      border: none;
-      border-radius: 18px;
-      box-shadow: 0 6px 20px rgba(0,0,0,0.08);
-      transition: all 0.3s ease;
-    }
-    .card-custom:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 10px 25px rgba(0,0,0,0.15);
-    }
-    .section-title { font-weight: 600; color: #023047; }
-    .quick-link { text-decoration: none; color: #0077b6; font-weight: 500; transition: 0.3s; }
-    .quick-link:hover { color: #023e8a; text-decoration: underline; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Dashboard | KLD Grade System</title>
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+    <link href="bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="verdantDesignSystem.css">
 </head>
 <body>
 
-  <?php include 'navbar_dashboard.php'; ?>
+    <?php include 'navbar_dashboard.php'; ?>
 
-  <div class="container dashboard-container">
-    
-    <!-- Welcome Card -->
-    <div class="welcome-card p-5 mb-5 text-center">
-      <h2 class="fw-bold mb-2">Welcome, <?php echo htmlspecialchars($first_name); ?>!</h2>
-      <p class="lead mb-0">Here’s your personalized dashboard — manage grades, view announcements, and access your profile easily.</p>
+    <div class="vds-container" style="padding-top: 40px; padding-bottom: 60px;">
+        
+        <!-- Welcome Section -->
+        <div class="vds-card mb-5" style="background: linear-gradient(135deg, var(--vds-forest), var(--vds-moss)); color: white;">
+            <div class="p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+                <div>
+                    <h1 class="vds-h2" style="color: white;">Welcome, <?php echo htmlspecialchars($full_name); ?></h1>
+                    <p class="vds-text-lead" style="color: rgba(255,255,255,0.9);">Here is your academic overview.</p>
+                </div>
+                <div class="text-center p-3" style="background: rgba(255,255,255,0.1); border-radius: 12px; backdrop-filter: blur(5px);">
+                    <span style="font-size: 0.9rem; opacity: 0.8;">Average Grade</span>
+                    <div style="font-size: 2.5rem; font-weight: 700; line-height: 1;"><?php echo $gpa; ?></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="vds-grid-3 mb-5">
+            <!-- Quick Actions -->
+            <div class="vds-card p-4 text-center hover-lift">
+                <i class="bi bi-journal-text vds-icon-lg mb-3" style="color: var(--vds-forest);"></i>
+                <h3 class="vds-h3">My Grades</h3>
+                <p class="vds-text-muted">View full grade history.</p>
+                <a href="grades.php" class="vds-btn vds-btn-primary w-100 mt-2">View Details</a>
+            </div>
+            <div class="vds-card p-4 text-center hover-lift">
+                <i class="bi bi-person vds-icon-lg mb-3" style="color: var(--vds-moss);"></i>
+                <h3 class="vds-h3">Profile</h3>
+                <p class="vds-text-muted">Update your information.</p>
+                <a href="profile.php" class="vds-btn vds-btn-secondary w-100 mt-2">Manage Profile</a>
+            </div>
+            <div class="vds-card p-4 text-center hover-lift">
+                <i class="bi bi-calendar-event vds-icon-lg mb-3" style="color: var(--vds-sage);"></i>
+                <h3 class="vds-h3">Schedule</h3>
+                <p class="vds-text-muted">View class schedule.</p>
+                <button class="vds-btn vds-btn-secondary w-100 mt-2" disabled>Coming Soon</button>
+            </div>
+        </div>
+
+        <!-- Recent Grades -->
+        <h3 class="vds-h3 mb-4">Recent Grades</h3>
+        <div class="vds-card">
+            <div class="table-responsive">
+                <table class="vds-table">
+                    <thead>
+                        <tr>
+                            <th>Subject Code</th>
+                            <th>Grade</th>
+                            <th>Remarks</th>
+                            <th>Date Posted</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if (count($grades) > 0): ?>
+                            <?php foreach (array_slice($grades, 0, 5) as $grade): ?>
+                                <tr>
+                                    <td><?php echo htmlspecialchars($grade['subject_code']); ?></td>
+                                    <td>
+                                        <span class="vds-badge <?php echo ($grade['grade'] <= 3.0) ? 'vds-badge-success' : 'vds-badge-fail'; ?>">
+                                            <?php echo htmlspecialchars($grade['grade']); ?>
+                                        </span>
+                                    </td>
+                                    <td><?php echo htmlspecialchars($grade['remarks']); ?></td>
+                                    <td style="color: var(--vds-text-muted);"><?php echo date('M d, Y', strtotime($grade['created_at'])); ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <tr>
+                                <td colspan="4" class="text-center p-4 text-muted">No grades posted yet.</td>
+                            </tr>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+            <?php if (count($grades) > 5): ?>
+                <div class="p-3 text-center border-top">
+                    <a href="grades.php" style="color: var(--vds-forest); font-weight: 600; text-decoration: none;">View All Grades</a>
+                </div>
+            <?php endif; ?>
+        </div>
+
     </div>
 
-    <!-- Main Dashboard Content -->
-    <div class="row g-4">
+    <?php include 'footer_dashboard.php'; ?>
 
-      <!-- Grades Overview -->
-      <div class="col-lg-4 col-md-6">
-        <div class="card card-custom p-4 text-center">
-          <i class="bi bi-journal-text display-4 text-primary mb-3"></i>
-          <h5 class="fw-bold">My Grades</h5>
-          <p>Check your latest subject grades and performance reports.</p>
-          <a href="grades.php" class="btn btn-primary">View Grades</a>
-        </div>
-      </div>
-
-      <!-- Profile Card -->
-      <div class="col-lg-4 col-md-6">
-        <div class="card card-custom p-4 text-center">
-          <i class="bi bi-person-circle display-4 text-success mb-3"></i>
-          <h5 class="fw-bold">Profile</h5>
-          <p>Manage your account details, password, and contact information.</p>
-          <a href="profile.php" class="btn btn-success">Go to Profile</a>
-        </div>
-      </div>
-
-      <!-- Announcements -->
-      <div class="col-lg-4 col-md-6">
-        <div class="card card-custom p-4 text-center">
-          <i class="bi bi-megaphone display-4 text-warning mb-3"></i>
-          <h5 class="fw-bold">Announcements</h5>
-          <p>Stay updated with the latest system and school announcements.</p>
-          <a href="announcements.php" class="btn btn-warning text-white">View Updates</a>
-        </div>
-      </div>
-    </div>
-
-    <!-- Recent Notices -->
-    <div class="mt-5">
-      <h4 class="section-title mb-3"><i class="bi bi-bell-fill me-2"></i>Recent Notices</h4>
-      <div class="card card-custom p-4">
-        <ul class="list-unstyled mb-0">
-          <li class="mb-3"><i class="bi bi-circle-fill text-primary me-2"></i>Grade submission for 2nd Semester is now open.</li>
-          <li class="mb-3"><i class="bi bi-circle-fill text-success me-2"></i>System maintenance scheduled on November 15, 2025.</li>
-          <li><i class="bi bi-circle-fill text-danger me-2"></i>Reminder: Update your profile to ensure accurate student information.</li>
-        </ul>
-      </div>
-    </div>
-  </div>
-
-  <?php include 'footer_dashboard.php'; ?>
-  <script src="js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
