@@ -1,0 +1,19 @@
+<?php
+include 'db.php';
+
+$student_id = $_POST['student_id'];
+$subject_id = $_POST['subject_id'];
+$grade = $_POST['grade'];
+$remarks = $_POST['remarks'];
+
+$sql = "INSERT INTO grades (student_id, subject_id, grade, remarks, date_added)
+        VALUES (?, ?, ?, ?, NOW())";
+
+$stmt = $conn->prepare($sql);
+$stmt->bind_param("iiss", $student_id, $subject_id, $grade, $remarks);
+
+if ($stmt->execute()) {
+    header("Location: submit_grade.php?success=1");
+} else {
+    echo "Error saving grade.";
+}
