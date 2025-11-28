@@ -1,11 +1,10 @@
 <?php
 session_start();
-if (!isset($_SESSION['email'])) {  // check login
+if (!isset($_SESSION['email'])) {
     header("Location: login.php");
     exit();
 }
 
-// Use session variables
 $first_name = isset($_SESSION['first_name']) ? $_SESSION['first_name'] : '';
 $email = isset($_SESSION['email']) ? $_SESSION['email'] : '';
 ?>
@@ -13,57 +12,125 @@ $email = isset($_SESSION['email']) ? $_SESSION['email'] : '';
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Profile - KLD Grade System</title>
-  <link rel="icon" type="image/png" href="assets/logo2.png">
-  <link href="css/bootstrap.min.css" rel="stylesheet">
-  <link href="bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
-  <style>
-    body {
-      font-family: 'Poppins', sans-serif;
-      background: linear-gradient(180deg, #e0fbfc, #fefae0);
-      color: #03045e;
-    }
-    .profile-container { padding-top: 100px; padding-bottom: 50px; }
-    .card-custom {
-      border: none;
-      border-radius: 18px;
-      box-shadow: 0 6px 20px rgba(0,0,0,0.1);
-      background: rgba(255,255,255,0.85);
-      backdrop-filter: blur(10px);
-      padding: 30px;
-      max-width: 600px;
-      margin: auto;
-    }
-    .section-title { font-weight: 600; color: #023047; margin-bottom: 30px; text-align: center; }
-    .profile-info { font-size: 1rem; margin-bottom: 15px; }
-    .profile-info strong { width: 120px; display: inline-block; }
-    .btn-back { margin-top: 20px; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile | KLD Grade System</title>
+    <link rel="icon" type="image/png" href="assets/logo2.png">
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+    <link href="bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="verdantDesignSystem.css">
+    <style>
+        .profile-header {
+            background: linear-gradient(135deg, var(--vds-forest), #0f4c3a);
+            height: 200px;
+            border-radius: 24px;
+            position: relative;
+            margin-bottom: 80px;
+        }
+
+        .profile-avatar-container {
+            position: absolute;
+            bottom: -60px;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+        }
+
+        .profile-avatar {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            border: 6px solid white;
+            background: white;
+            object-fit: cover;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+        }
+    </style>
 </head>
-<body>
+<body class="vds-bg-vapor">
 
-  <?php include 'navbar_dashboard.php'; ?>
+    <?php include 'navbar_dashboard.php'; ?>
 
-  <div class="container profile-container">
-    <h2 class="section-title"><i class="bi bi-person-circle me-2"></i>My Profile</h2>
+    <div class="vds-container py-5">
+        
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                
+                <div class="profile-header fade-in-up">
+                    <div class="profile-avatar-container">
+                        <img src="assets/logo2.png" alt="Profile" class="profile-avatar">
+                        <h2 class="vds-h3 mt-3 mb-0"><?php echo htmlspecialchars($first_name); ?></h2>
+                        <span class="vds-pill vds-pill-pass mt-2">Active Student</span>
+                    </div>
+                </div>
 
-    <div class="card card-custom text-start">
-      <div class="profile-info"><strong>First Name:</strong> <?php echo htmlspecialchars($first_name); ?></div>
-      <div class="profile-info"><strong>Email:</strong> <?php echo htmlspecialchars($email); ?></div>
-      <div class="profile-info"><strong>Last Name:</strong> Placeholder</div>
-      <div class="profile-info"><strong>Phone:</strong> Placeholder</div>
-      <div class="profile-info"><strong>Address:</strong> Placeholder</div>
+                <div class="vds-glass p-5">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h3 class="vds-h3 mb-0">Personal Information</h3>
+                        <button class="vds-btn vds-btn-secondary" disabled>
+                            <i class="bi bi-pencil me-2"></i>Edit Profile
+                        </button>
+                    </div>
 
-      <div class="text-center btn-back">
-        <a href="dashboard.php" class="btn btn-primary"><i class="bi bi-arrow-left-circle me-2"></i>Back to Dashboard</a>
-      </div>
+                    <form>
+                        <div class="row g-4">
+                            <div class="col-md-6">
+                                <div class="vds-form-group">
+                                    <label class="vds-label">First Name</label>
+                                    <input type="text" class="vds-input" value="<?php echo htmlspecialchars($first_name); ?>" readonly>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="vds-form-group">
+                                    <label class="vds-label">Last Name</label>
+                                    <input type="text" class="vds-input" value="Placeholder" readonly>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="vds-form-group">
+                                    <label class="vds-label">Email Address</label>
+                                    <input type="email" class="vds-input" value="<?php echo htmlspecialchars($email); ?>" readonly>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="vds-form-group">
+                                    <label class="vds-label">Phone Number</label>
+                                    <input type="tel" class="vds-input" value="+63 900 000 0000" readonly>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="vds-form-group">
+                                    <label class="vds-label">Student ID</label>
+                                    <input type="text" class="vds-input" value="2023-00001" readonly>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="vds-form-group">
+                                    <label class="vds-label">Address</label>
+                                    <input type="text" class="vds-input" value="Dasmariñas City, Cavite" readonly>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+
+                    <div class="mt-5 pt-4 border-top">
+                        <h4 class="vds-h4 mb-3 text-danger">Danger Zone</h4>
+                        <div class="d-flex justify-content-between align-items-center p-3" style="background: #fee2e2; border-radius: 12px;">
+                            <div>
+                                <h5 class="mb-1 text-danger" style="font-size: 1rem; font-weight: 600;">Delete Account</h5>
+                                <p class="mb-0 small text-muted">Once you delete your account, there is no going back.</p>
+                            </div>
+                            <button class="btn btn-danger btn-sm rounded-pill px-4">Delete</button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
     </div>
-  </div>
 
-  <?php include 'footer_dashboard.php'; ?>
-  <script src="js/bootstrap.bundle.min.js"></script>
+    <?php include 'footer_dashboard.php'; ?>
+    <script src="js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

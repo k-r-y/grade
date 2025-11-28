@@ -5,16 +5,23 @@ if (session_status() == PHP_SESSION_NONE) {
 ?>
 <nav class="vds-navbar">
     <div class="vds-container vds-nav-content">
-        <a href="<?php echo ($_SESSION['role'] === 'teacher') ? 'teacher_dashboard.php' : 'dashboard.php'; ?>" class="vds-brand">
+        <a href="<?php 
+            if ($_SESSION['role'] === 'teacher') echo 'teacher_dashboard.php';
+            elseif ($_SESSION['role'] === 'admin') echo 'admin_dashboard.php';
+            else echo 'student_dashboard.php'; 
+        ?>" class="vds-brand">
             <img src="assets/logo2.png" alt="Logo" height="40">
             KLD Portal
         </a>
         <div class="vds-nav-links">
             <?php if(isset($_SESSION['role']) && $_SESSION['role'] === 'teacher'): ?>
                 <a href="teacher_dashboard.php" class="vds-nav-link">Dashboard</a>
-                <a href="manage_grades.php" class="vds-nav-link">Grades</a>
+                <a href="my_classes.php" class="vds-nav-link">My Classes</a>
+            <?php elseif(isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
+                <a href="admin_dashboard.php" class="vds-nav-link">Dashboard</a>
+                <a href="admin_students.php" class="vds-nav-link">Students</a>
             <?php else: ?>
-                <a href="dashboard.php" class="vds-nav-link">Dashboard</a>
+                <a href="student_dashboard.php" class="vds-nav-link">Dashboard</a>
                 <a href="grades.php" class="vds-nav-link">My Grades</a>
             <?php endif; ?>
             

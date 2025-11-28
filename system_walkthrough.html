@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>System Walkthrough | KLD GradeVault</title>
+    <link href="css/bootstrap.min.css" rel="stylesheet" />
+    <link href="bootstrap-icons/bootstrap-icons.css" rel="stylesheet" />
+    <link rel="stylesheet" href="verdantDesignSystem.css" />
+    <style>
+      body {
+        background-color: var(--vds-vapor);
+        color: var(--vds-forest);
+      }
+      .sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100vh;
+        width: 280px;
+        background: white;
+        border-right: 1px solid rgba(0, 0, 0, 0.05);
+        padding: 2rem;
+        overflow-y: auto;
+      }
+      .main-content {
+        margin-left: 280px;
+        padding: 3rem;
+      }
+      .nav-link {
+        color: var(--vds-text-muted);
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        transition: all 0.2s;
+        margin-bottom: 0.25rem;
+      }
+      .nav-link:hover,
+      .nav-link.active {
+        background-color: var(--vds-vapor);
+        color: var(--vds-forest);
+        font-weight: 600;
+      }
+      .section-title {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 1.5rem;
+        color: var(--vds-forest);
+        border-bottom: 2px solid var(--vds-sage);
+        padding-bottom: 0.5rem;
+      }
+      .feature-card {
+        background: white;
+        border-radius: 16px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        transition: transform 0.2s;
+      }
+      .feature-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 15px rgba(0, 0, 0, 0.05);
+      }
+      .role-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 50px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+      }
+      .badge-admin {
+        background: #fee2e2;
+        color: #b91c1c;
+      }
+      .badge-teacher {
+        background: #dcfce7;
+        color: #15803d;
+      }
+      .badge-student {
+        background: #e0f2fe;
+        color: #0284c7;
+      }
+      .badge-public {
+        background: #f3f4f6;
+        color: #4b5563;
+      }
+
+      code {
+        background: #f1f5f9;
+        padding: 0.2rem 0.4rem;
+        border-radius: 4px;
+        color: #ef4444;
+        font-size: 0.9em;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Sidebar Navigation -->
+    <nav class="sidebar">
+      <div class="mb-5">
+        <img src="assets/logo2.png" alt="KLD Logo" height="40" class="mb-3" />
+        <h5 class="fw-bold">System Walkthrough</h5>
+        <p class="text-muted small">KLD GradeVault Documentation</p>
+      </div>
+
+      <div class="nav flex-column">
+        <a href="#overview" class="nav-link active">Overview</a>
+        <a href="#public-zone" class="nav-link">Public Zone</a>
+        <a href="#admin-zone" class="nav-link">Admin Zone</a>
+        <a href="#teacher-zone" class="nav-link">Teacher Zone</a>
+        <a href="#student-zone" class="nav-link">Student Zone</a>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Overview Section -->
+      <section id="overview" class="mb-5">
+        <h1 class="section-title">System Overview</h1>
+        <p class="lead mb-4">
+          The KLD GradeVault system is architected into two distinct zones: a
+          <strong>Public Zone</strong> for entry and verification, and a secure
+          <strong>Private Zone</strong> tailored to specific permissions.
+        </p>
+
+        <div class="row g-4">
+          <div class="col-md-6">
+            <div class="feature-card h-100">
+              <h3 class="h4 mb-3">Public Zone</h3>
+              <p class="text-muted">
+                Accessible to anyone. Serves as the secure gateway for
+                authentication and registration.
+              </p>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="feature-card h-100">
+              <h3 class="h4 mb-3">Private Zone</h3>
+              <p class="text-muted">
+                Restricted access based on roles: Admin, Teacher, and Student.
+                Contains the core functionality.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Public Zone -->
+      <section id="public-zone" class="mb-5 pt-5">
+        <h2 class="section-title">Public Zone</h2>
+
+        <div class="feature-card">
+          <span class="role-badge badge-public">Public</span>
+          <h3 class="h4">Login Portal</h3>
+          <p class="text-muted mb-2">File: <code>login.php</code></p>
+          <p>
+            The gatekeeper of the system. Authenticates credentials and routes
+            users to their specific dashboards. Blocks unverified or unapproved
+            accounts.
+          </p>
+        </div>
+
+        <div class="feature-card">
+          <span class="role-badge badge-public">Public</span>
+          <h3 class="h4">Registration Page</h3>
+          <p class="text-muted mb-2">File: <code>register.php</code></p>
+          <p>
+            Smart form with dynamic dropdowns. Enforces security by requiring
+            institutional emails and OTP verification. Teachers are placed in a
+            "pending" state upon registration.
+          </p>
+        </div>
+
+        <div class="feature-card">
+          <span class="role-badge badge-public">Public</span>
+          <h3 class="h4">Account Recovery</h3>
+          <p class="text-muted mb-2">File: <code>forgot_password.php</code></p>
+          <p>
+            Allows users to securely reset their credentials via email link.
+          </p>
+        </div>
+      </section>
+
+      <!-- Admin Zone -->
+      <section id="admin-zone" class="mb-5 pt-5">
+        <h2 class="section-title">Admin Zone (Institute Head)</h2>
+
+        <div class="feature-card">
+          <span class="role-badge badge-admin">Admin</span>
+          <h3 class="h4">Admin Dashboard</h3>
+          <p class="text-muted mb-2">File: <code>admin_dashboard.php</code></p>
+          <p>
+            High-level view of the institute's health. Provides quick access to
+            management tools and system stats.
+          </p>
+        </div>
+
+        <div class="feature-card">
+          <span class="role-badge badge-admin">Admin</span>
+          <h3 class="h4">Faculty Management</h3>
+          <p class="text-muted mb-2">File: <code>admin_faculty.php</code></p>
+          <p>
+            Critical workflow for approving teacher accounts. Admins must
+            explicitly "Approve" pending teachers before they can access the
+            system.
+          </p>
+        </div>
+
+        <div class="feature-card">
+          <span class="role-badge badge-admin">Admin</span>
+          <h3 class="h4">Student Registry</h3>
+          <p class="text-muted mb-2">File: <code>admin_students.php</code></p>
+          <p>
+            Manage student enrollment statuses and view student lists within the
+            institute.
+          </p>
+        </div>
+
+        <div class="feature-card">
+          <span class="role-badge badge-admin">Admin</span>
+          <h3 class="h4">Institute Settings</h3>
+          <p class="text-muted mb-2">File: <code>admin_settings.php</code></p>
+          <p>
+            Configure global variables like academic years, semesters, and
+            system maintenance switches.
+          </p>
+        </div>
+      </section>
+
+      <!-- Teacher Zone -->
+      <section id="teacher-zone" class="mb-5 pt-5">
+        <h2 class="section-title">Teacher Zone (Faculty)</h2>
+
+        <div class="feature-card">
+          <span class="role-badge badge-teacher">Teacher</span>
+          <h3 class="h4">Teacher Dashboard</h3>
+          <p class="text-muted mb-2">
+            File: <code>teacher_dashboard.php</code>
+          </p>
+          <p>
+            Central hub for teachers. Lists assigned subjects and provides
+            access to grading tools.
+          </p>
+        </div>
+
+        <div class="feature-card">
+          <span class="role-badge badge-teacher">Teacher</span>
+          <h3 class="h4">Grade Import</h3>
+          <p class="text-muted mb-2">File: <code>grade_upload.php</code></p>
+          <p>
+            Drag-and-drop interface for Excel files. Parses files instantly,
+            validates Student IDs, and allows data preview before committing.
+          </p>
+        </div>
+
+        <div class="feature-card">
+          <span class="role-badge badge-teacher">Teacher</span>
+          <h3 class="h4">Class Records</h3>
+          <p class="text-muted mb-2">File: <code>teacher_records.php</code></p>
+          <p>
+            Digital ledger for manual grade management. Search for specific
+            students and edit or delete grade entries.
+          </p>
+        </div>
+      </section>
+
+      <!-- Student Zone -->
+      <section id="student-zone" class="mb-5 pt-5">
+        <h2 class="section-title">Student Zone</h2>
+
+        <div class="feature-card">
+          <span class="role-badge badge-student">Student</span>
+          <h3 class="h4">Student Dashboard</h3>
+          <p class="text-muted mb-2">
+            File: <code>student_dashboard.php</code>
+          </p>
+          <p>
+            Real-time report card. Displays recent grades, GPA, and visual
+            indicators for pass/fail status.
+          </p>
+        </div>
+
+        <div class="feature-card">
+          <span class="role-badge badge-student">Student</span>
+          <h3 class="h4">Academic History</h3>
+          <p class="text-muted mb-2">File: <code>student_history.php</code></p>
+          <p>
+            Transcript-style timeline of grades across all years and semesters.
+          </p>
+        </div>
+
+        <div class="feature-card">
+          <span class="role-badge badge-student">Student</span>
+          <h3 class="h4">Print Preview</h3>
+          <p class="text-muted mb-2">File: <code>print_grades.php</code></p>
+          <p>
+            Formats current grades into a branded, official PDF layout suitable
+            for printing.
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <script src="js/bootstrap.bundle.min.js"></script>
+    <script>
+      // Smooth scrolling for sidebar links
+      document.querySelectorAll('a[href^="#"]').forEach((anchor) => {
+        anchor.addEventListener("click", function (e) {
+          e.preventDefault();
+          document.querySelector(this.getAttribute("href")).scrollIntoView({
+            behavior: "smooth",
+          });
+
+          // Update active state
+          document
+            .querySelectorAll(".nav-link")
+            .forEach((link) => link.classList.remove("active"));
+          this.classList.add("active");
+        });
+      });
+    </script>
+  </body>
+</html>

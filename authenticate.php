@@ -46,7 +46,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = trim($_POST['email']);
     $password = $_POST['password'];
 
-    $stmt = $conn->prepare("SELECT id, role, full_name, password_hash, email, is_verified, school_id FROM users WHERE email = ?");
+    $stmt = $conn->prepare("SELECT id, role, full_name, password_hash, email, is_verified, school_id, status FROM users WHERE email = ?");
     $stmt->bind_param("s", $email);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -62,6 +62,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 resendOTP($email);
                 $_SESSION['login_error'] = "Email not verified. A new code has been sent.";
                 header("Location: register.php?step=2");
+                exit();
+            }
+
+            // 1.5 Check Approval Status (For Teachers)
+            if ($user['status'] === 'pending') {
+                $_SESSION['login_error'] = "Your account is awaiting approval from the Institute Head.";
+                $_SESSION['login_email'] = $email;
+                header("Location: login.php");
                 exit();
             }
 
@@ -84,17 +92,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } elseif ($user['role'] === 'teacher') {
                 header("Location: teacher_dashboard.php");
             } else {
-                header("Location: dashboard.php");
+                header("Location: student_dashboard.php");
             }
             exit();
 
         } else {
             $_SESSION['login_error'] = "Incorrect password.";
+            $_SESSION['login_email'] = $email;
             header("Location: login.php");
             exit();
         }
     } else {
         $_SESSION['login_error'] = "No account found with that email.";
+        $_SESSION['login_email'] = $email;
         header("Location: login.php");
         exit();
     }

@@ -41,7 +41,17 @@ function sendOTP($email, $otp) {
     }
 }
 
-$step = $_GET['step'] ?? '1';
+// --- Session Persistence Logic ---
+// Determine the current step based on session or default to 1
+$session_step = $_SESSION['register_step'] ?? 1;
+$request_step = $_GET['step'] ?? $session_step;
+
+// Prevent jumping ahead of progress
+if ($request_step > $session_step) {
+    $request_step = $session_step;
+}
+$step = $request_step;
+
 $error = '';
 $success = '';
 
@@ -83,6 +93,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['register_step1'])) {
                 $stmtOtp->execute();
 
                 $_SESSION['verify_email'] = $email;
+                $_SESSION['register_step'] = 2; // Advance progress
                 if (sendOTP($email, $otp)) {
                     header("Location: register.php?step=2");
                     exit();
@@ -106,6 +117,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['register_step1'])) {
                 $stmtOtp->execute();
 
                 $_SESSION['verify_email'] = $email;
+                $_SESSION['register_step'] = 2; // Advance progress
                 if (sendOTP($email, $otp)) {
                     header("Location: register.php?step=2");
                     exit();
@@ -129,8 +141,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['verify_otp'])) {
         exit();
     }
 
-    $stmt = $conn->prepare("SELECT * FROM verification_codes WHERE email = ? AND code = ? AND expires_at > NOW()");
-    $stmt->bind_param("ss", $email, $entered_otp);
+    // FIX: Use PHP time for comparison to avoid DB timezone mismatch
+    $current_time = date('Y-m-d H:i:s');
+    $stmt = $conn->prepare("SELECT * FROM verification_codes WHERE email = ? AND code = ? AND expires_at > ?");
+    $stmt->bind_param("sss", $email, $entered_otp, $current_time);
     $stmt->execute();
     $result = $stmt->get_result();
 
@@ -143,7 +157,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['verify_otp'])) {
         // Cleanup OTPs
         $conn->query("DELETE FROM verification_codes WHERE email = '$email'");
         
-        // Go to Profile Completion
+        $_SESSION['register_step'] = 3; // Advance progress
         header("Location: register.php?step=3");
         exit();
     } else {
@@ -151,12 +165,29 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['verify_otp'])) {
     }
 }
 
+// --- Resend OTP Handler ---
+if (isset($_POST['resend_otp'])) {
+    $email = $_SESSION['verify_email'] ?? '';
+    if ($email) {
+        $otp = rand(100000, 999999);
+        $expires_at = date('Y-m-d H:i:s', time() + 600);
+        
+        $stmtOtp = $conn->prepare("INSERT INTO verification_codes (email, code, expires_at) VALUES (?, ?, ?)");
+        $stmtOtp->bind_param("sss", $email, $otp, $expires_at);
+        $stmtOtp->execute();
+        
+        if (sendOTP($email, $otp)) {
+            $success = "New code sent to your email.";
+        } else {
+            $error = "Failed to send new code.";
+        }
+    }
+}
+
 // --- STEP 3: Complete Profile ---
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['complete_profile'])) {
     $email = $_SESSION['verify_email'] ?? '';
     if (empty($email)) {
-        // Fallback if session lost, maybe ask to login? 
-        // For now redirect to login
         header("Location: login.php");
         exit();
     }
@@ -164,27 +195,45 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['complete_profile'])) {
     $school_id = trim($_POST['school_id']);
     $first_name = trim($_POST['first_name']);
     $last_name = trim($_POST['last_name']);
-    $program_id = intval($_POST['program_id']);
-    $full_name = "$first_name $last_name"; // Or keep separate if schema allows
+    $role = $_POST['role']; // 'student' or 'teacher'
+    $institute_id = intval($_POST['institute_id']);
+    
+    // Program is optional for teachers
+    $program_id = isset($_POST['program_id']) && $_POST['program_id'] !== '' ? intval($_POST['program_id']) : null;
+    
+    $full_name = "$first_name $last_name"; 
+    
+    // Determine status
+    $status = ($role === 'teacher') ? 'pending' : 'active';
 
     // Update User
-    $stmt = $conn->prepare("UPDATE users SET school_id = ?, full_name = ?, program_id = ? WHERE email = ?");
-    $stmt->bind_param("ssis", $school_id, $full_name, $program_id, $email);
+    $stmt = $conn->prepare("UPDATE users SET school_id = ?, full_name = ?, program_id = ?, institute_id = ?, role = ?, status = ? WHERE email = ?");
+    $stmt->bind_param("ssiisss", $school_id, $full_name, $program_id, $institute_id, $role, $status, $email);
     
     if ($stmt->execute()) {
-        // Auto Login
-        $stmtUser = $conn->prepare("SELECT id, role FROM users WHERE email = ?");
-        $stmtUser->bind_param("s", $email);
-        $stmtUser->execute();
-        $user = $stmtUser->get_result()->fetch_assoc();
+        // Clear registration session data
+        unset($_SESSION['verify_email']);
+        unset($_SESSION['register_step']);
 
-        $_SESSION['user_id'] = $user['id'];
-        $_SESSION['email'] = $email;
-        $_SESSION['role'] = $user['role'];
-        $_SESSION['full_name'] = $full_name;
+        if ($role === 'teacher') {
+            // Redirect to Pending Approval Page
+            header("Location: pending_approval.php");
+            exit();
+        } else {
+            // Auto Login for Students
+            $stmtUser = $conn->prepare("SELECT id, role FROM users WHERE email = ?");
+            $stmtUser->bind_param("s", $email);
+            $stmtUser->execute();
+            $user = $stmtUser->get_result()->fetch_assoc();
 
-        header("Location: dashboard.php");
-        exit();
+            $_SESSION['user_id'] = $user['id'];
+            $_SESSION['email'] = $email;
+            $_SESSION['role'] = $user['role'];
+            $_SESSION['full_name'] = $full_name;
+            
+            header("Location: student_dashboard.php");
+            exit();
+        }
     } else {
         $error = "Failed to update profile: " . $conn->error;
     }
@@ -250,13 +299,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['complete_profile'])) {
                     <p class="vds-text-muted">Step 2 of 3: Enter the code sent to <strong><?php echo htmlspecialchars($_SESSION['verify_email']); ?></strong></p>
                 </div>
                 <?php if($error): ?><div class="vds-pill vds-pill-fail mb-4 w-100 justify-content-center"><?php echo $error; ?></div><?php endif; ?>
+                <?php if($success): ?><div class="vds-pill vds-pill-pass mb-4 w-100 justify-content-center"><?php echo $success; ?></div><?php endif; ?>
 
                 <form method="POST">
                     <div class="vds-form-group">
                         <input type="text" name="otp" class="vds-input text-center" style="font-size: 1.5rem; letter-spacing: 5px;" placeholder="######" maxlength="6" required>
                     </div>
-                    <button type="submit" name="verify_otp" class="vds-btn vds-btn-primary w-100">Verify Code</button>
+                    <button type="submit" name="verify_otp" class="vds-btn vds-btn-primary w-100 mb-3">Verify Code</button>
                 </form>
+                
+                <form method="POST" class="text-center">
+                    <button type="submit" name="resend_otp" class="vds-btn vds-btn-secondary btn-sm" style="font-size: 0.8rem; padding: 6px 16px;">Resend Code</button>
+                </form>
+                
                 <div class="text-center mt-3">
                     <a href="register.php?step=1" class="vds-text-muted small">Wrong email? Start over</a>
                 </div>
@@ -265,13 +320,21 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['complete_profile'])) {
                 <!-- STEP 3: Complete Profile -->
                 <div class="text-center mb-4">
                     <h2 class="vds-h2">Complete Profile</h2>
-                    <p class="vds-text-muted">Step 3 of 3: Student Information</p>
+                    <p class="vds-text-muted">Step 3 of 3: Personal Information</p>
                 </div>
                 <?php if($error): ?><div class="vds-pill vds-pill-fail mb-4 w-100 justify-content-center"><?php echo $error; ?></div><?php endif; ?>
 
                 <form method="POST">
                     <div class="vds-form-group">
-                        <label class="vds-label">Student ID</label>
+                        <label class="vds-label">Role</label>
+                        <select name="role" id="roleSelect" class="vds-select" required>
+                            <option value="student">Student</option>
+                            <option value="teacher">Teacher</option>
+                        </select>
+                    </div>
+
+                    <div class="vds-form-group">
+                        <label class="vds-label">ID Number</label>
                         <input type="text" name="school_id" class="vds-input" placeholder="KLD-2024-XXXX" required>
                     </div>
                     <div class="vds-grid-2">
@@ -287,13 +350,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['complete_profile'])) {
                     
                     <div class="vds-form-group">
                         <label class="vds-label">Institute</label>
-                        <select id="instituteSelect" class="vds-select" required>
+                        <select id="instituteSelect" name="institute_id" class="vds-select" required>
                             <option value="">Select Institute</option>
                         </select>
                     </div>
-                    <div class="vds-form-group">
+                    
+                    <!-- Program is only for Students -->
+                    <div class="vds-form-group" id="programGroup">
                         <label class="vds-label">Program</label>
-                        <select id="programSelect" name="program_id" class="vds-select" required disabled>
+                        <select id="programSelect" name="program_id" class="vds-select">
                             <option value="">Select Program</option>
                         </select>
                     </div>
@@ -311,6 +376,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['complete_profile'])) {
         if (document.getElementById('instituteSelect')) {
             const instituteSelect = document.getElementById('instituteSelect');
             const programSelect = document.getElementById('programSelect');
+            const roleSelect = document.getElementById('roleSelect');
+            const programGroup = document.getElementById('programGroup');
+
+            // Toggle Program field based on Role
+            roleSelect.addEventListener('change', function() {
+                if (this.value === 'teacher') {
+                    programGroup.style.display = 'none';
+                    programSelect.required = false;
+                } else {
+                    programGroup.style.display = 'block';
+                    programSelect.required = true;
+                }
+            });
 
             fetch('api.php?action=get_institutes')
                 .then(response => response.json())
@@ -326,9 +404,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['complete_profile'])) {
             instituteSelect.addEventListener('change', function() {
                 const instId = this.value;
                 programSelect.innerHTML = '<option value="">Select Program</option>';
-                programSelect.disabled = true;
-
-                if (instId) {
+                
+                // Only fetch programs if role is student
+                if (roleSelect.value === 'student' && instId) {
                     fetch(`api.php?action=get_programs&institute_id=${instId}`)
                         .then(response => response.json())
                         .then(data => {
@@ -338,7 +416,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['complete_profile'])) {
                                 option.textContent = prog.code + ' - ' + prog.name;
                                 programSelect.appendChild(option);
                             });
-                            programSelect.disabled = false;
                         });
                 }
             });

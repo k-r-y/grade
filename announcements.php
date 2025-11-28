@@ -1,81 +1,117 @@
 <?php
 session_start();
-if (!isset($_SESSION['email'])) {  // check login
+if (!isset($_SESSION['email'])) {
     header("Location: login.php");
     exit();
 }
 
-// Use session variable for greeting if needed
 $first_name = isset($_SESSION['first_name']) ? $_SESSION['first_name'] : '';
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Announcements - KLD Grade System</title>
-  <link rel="icon" type="image/png" href="assets/logo2.png">
-  <link href="css/bootstrap.min.css" rel="stylesheet">
-  <link href="bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Announcements | KLD Grade System</title>
+    <link rel="icon" type="image/png" href="assets/logo2.png">
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+    <link href="bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="verdantDesignSystem.css">
+    <style>
+        .announcement-card {
+            transition: all 0.3s ease;
+            border-left: 4px solid transparent;
+        }
+        
+        .announcement-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+        }
 
-  <style>
-    body {
-      font-family: 'Poppins', sans-serif;
-      background: linear-gradient(180deg, #e0fbfc, #fefae0);
-      color: #03045e;
-    }
-    .announcements-container { padding-top: 100px; padding-bottom: 50px; }
-    .card-custom {
-      border: none;
-      border-radius: 18px;
-      box-shadow: 0 6px 20px rgba(0,0,0,0.1);
-      background: rgba(255,255,255,0.85);
-      backdrop-filter: blur(10px);
-      padding: 30px;
-      margin-bottom: 20px;
-    }
-    .section-title { font-weight: 600; color: #023047; margin-bottom: 30px; text-align: center; }
-    .announcement-item { font-size: 1rem; margin-bottom: 15px; }
-    .announcement-item i { margin-right: 10px; }
-    .btn-back { margin-top: 20px; }
-  </style>
+        .priority-high { border-left-color: #ef4444; }
+        .priority-medium { border-left-color: #f59e0b; }
+        .priority-normal { border-left-color: var(--vds-forest); }
+    </style>
 </head>
-<body>
+<body class="vds-bg-vapor">
 
-  <?php include 'navbar_dashboard.php'; ?>
+    <?php include 'navbar_dashboard.php'; ?>
 
-  <div class="container announcements-container">
-    <h2 class="section-title"><i class="bi bi-megaphone me-2"></i>Announcements</h2>
+    <div class="vds-container py-5">
+        
+        <div class="d-flex justify-content-between align-items-center mb-5">
+            <div>
+                <span class="vds-pill mb-2" style="background: var(--vds-sage); color: var(--vds-forest);">News & Updates</span>
+                <h1 class="vds-h2">Announcements</h1>
+            </div>
+            <div class="d-flex gap-2">
+                <button class="vds-btn vds-btn-secondary btn-sm">Filter by Date</button>
+            </div>
+        </div>
 
-    <!-- Announcement Cards -->
-    <div class="card card-custom">
-      <div class="announcement-item">
-        <i class="bi bi-circle-fill text-primary"></i>
-        Grade submission for 2nd Semester is now open.
-      </div>
-      <div class="announcement-item">
-        <i class="bi bi-circle-fill text-success"></i>
-        System maintenance scheduled on November 15, 2025.
-      </div>
-      <div class="announcement-item">
-        <i class="bi bi-circle-fill text-warning"></i>
-        New grading policies will take effect next semester.
-      </div>
-      <div class="announcement-item">
-        <i class="bi bi-circle-fill text-danger"></i>
-        Reminder: Update your profile to ensure accurate student information.
-      </div>
+        <div class="row g-4">
+            <!-- Announcement 1 -->
+            <div class="col-12">
+                <div class="vds-card p-4 announcement-card priority-high">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div class="d-flex align-items-center gap-3">
+                            <span class="vds-pill vds-pill-fail">Important</span>
+                            <span class="vds-text-muted small"><i class="bi bi-clock me-1"></i>Posted 2 hours ago</span>
+                        </div>
+                        <i class="bi bi-pin-angle-fill text-danger"></i>
+                    </div>
+                    <h3 class="vds-h3 mb-2">Grade Submission for 2nd Semester Open</h3>
+                    <p class="vds-text-lead mb-0">The portal is now open for grade encoding. Please ensure all grades are submitted before the deadline on December 15, 2025.</p>
+                </div>
+            </div>
+
+            <!-- Announcement 2 -->
+            <div class="col-12">
+                <div class="vds-card p-4 announcement-card priority-medium">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div class="d-flex align-items-center gap-3">
+                            <span class="vds-pill vds-pill-warn">Maintenance</span>
+                            <span class="vds-text-muted small"><i class="bi bi-clock me-1"></i>Nov 10, 2025</span>
+                        </div>
+                    </div>
+                    <h3 class="vds-h3 mb-2">Scheduled System Maintenance</h3>
+                    <p class="vds-text-muted mb-0">The system will undergo routine maintenance on November 15, 2025, from 10:00 PM to 2:00 AM. Access may be intermittent during this period.</p>
+                </div>
+            </div>
+
+            <!-- Announcement 3 -->
+            <div class="col-12">
+                <div class="vds-card p-4 announcement-card priority-normal">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div class="d-flex align-items-center gap-3">
+                            <span class="vds-pill vds-pill-pass">Policy Update</span>
+                            <span class="vds-text-muted small"><i class="bi bi-clock me-1"></i>Oct 28, 2025</span>
+                        </div>
+                    </div>
+                    <h3 class="vds-h3 mb-2">New Grading Policies for Next Semester</h3>
+                    <p class="vds-text-muted mb-0">Please review the updated student handbook regarding the new grading scale and retention policies effective next academic year.</p>
+                </div>
+            </div>
+
+            <!-- Announcement 4 -->
+            <div class="col-12">
+                <div class="vds-card p-4 announcement-card priority-normal">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div class="d-flex align-items-center gap-3">
+                            <span class="vds-pill" style="background: #e0f2fe; color: #0284c7;">Reminder</span>
+                            <span class="vds-text-muted small"><i class="bi bi-clock me-1"></i>Oct 15, 2025</span>
+                        </div>
+                    </div>
+                    <h3 class="vds-h3 mb-2">Profile Update Required</h3>
+                    <p class="vds-text-muted mb-0">All students are required to update their contact information and emergency contact details in the profile section.</p>
+                </div>
+            </div>
+        </div>
+
     </div>
 
-    <!-- Back Button -->
-    <div class="text-center btn-back">
-      <a href="dashboard.php" class="btn btn-primary"><i class="bi bi-arrow-left-circle me-2"></i>Back to Dashboard</a>
-    </div>
-  </div>
-
-  <?php include 'footer_dashboard.php'; ?>
-  <script src="js/bootstrap.bundle.min.js"></script>
+    <?php include 'footer_dashboard.php'; ?>
+    <script src="js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

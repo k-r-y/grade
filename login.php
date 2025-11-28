@@ -37,7 +37,7 @@
             <?php if(isset($_SESSION['login_error'])): ?>
                 <div class="vds-pill vds-pill-fail mb-4 w-100" style="justify-content: center;">
                     <?php 
-                        echo $_SESSION['login_error']; 
+                        echo htmlspecialchars($_SESSION['login_error']); 
                         unset($_SESSION['login_error']); 
                     ?>
                 </div>
@@ -46,7 +46,8 @@
             <form action="authenticate.php" method="POST">
                 <div class="vds-form-group text-start">
                     <label class="vds-label">Email Address</label>
-                    <input type="email" name="email" class="vds-input" placeholder="student@kld.edu.ph" required>
+                    <input type="email" name="email" class="vds-input" placeholder="student@kld.edu.ph" value="<?php echo isset($_SESSION['login_email']) ? htmlspecialchars($_SESSION['login_email']) : ''; ?>" required>
+                    <?php unset($_SESSION['login_email']); ?>
                 </div>
                 <div class="vds-form-group text-start">
                     <label class="vds-label">Password</label>
@@ -58,7 +59,7 @@
 
             <div class="mt-4 d-flex justify-content-between" style="font-size: 0.9rem;">
                 <a href="register.php" style="color: var(--vds-forest); text-decoration: none; font-weight: 600;">Create Account</a>
-                <a href="forgot.php" style="color: var(--vds-text-muted); text-decoration: none;">Forgot Password?</a>
+                <a href="forgot_password.php" style="color: var(--vds-text-muted); text-decoration: none;">Forgot Password?</a>
             </div>
 
             <div class="mt-4 pt-3 border-top">

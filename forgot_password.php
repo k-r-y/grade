@@ -66,8 +66,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['verify_otp'])) {
     $otp = trim($_POST['otp']);
     $email = $_SESSION['reset_email'] ?? '';
     
-    $stmt = $conn->prepare("SELECT * FROM verification_codes WHERE email = ? AND code = ? AND expires_at > NOW()");
-    $stmt->bind_param("ss", $email, $otp);
+    $current_time = date('Y-m-d H:i:s');
+    $stmt = $conn->prepare("SELECT * FROM verification_codes WHERE email = ? AND code = ? AND expires_at > ?");
+    $stmt->bind_param("sss", $email, $otp, $current_time);
     $stmt->execute();
     if ($stmt->get_result()->num_rows > 0) {
         $_SESSION['reset_verified'] = true;

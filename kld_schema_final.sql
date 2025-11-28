@@ -26,9 +26,12 @@ CREATE TABLE IF NOT EXISTS users (
     password_hash VARCHAR(255) NOT NULL,
     role ENUM('student', 'teacher', 'admin') DEFAULT 'student',
     program_id INT DEFAULT NULL, -- Nullable for teachers/admins
+    institute_id INT DEFAULT NULL, -- For Teachers/Admins
     is_verified TINYINT(1) DEFAULT 0, -- 0 = Pending, 1 = Verified
+    status ENUM('active', 'pending') DEFAULT 'active', -- For Teacher approval
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (program_id) REFERENCES programs(id)
+    FOREIGN KEY (program_id) REFERENCES programs(id),
+    FOREIGN KEY (institute_id) REFERENCES institutes(id)
 );
 
 -- 4. VERIFICATION CODES: Temporary storage for OTPs
@@ -64,8 +67,6 @@ INSERT INTO institutes (name, code) VALUES
 ON DUPLICATE KEY UPDATE code=code;
 
 -- Programs for ICDI (Institute ID 1)
--- Assuming IDs are 1, 2, 3 based on insertion order. 
--- In a real script, we'd look up IDs, but for this SQL file we assume sequential AI.
 INSERT INTO programs (institute_id, name, code) VALUES 
 (1, 'Bachelor of Science in Information Systems', 'BSIS'),
 (1, 'Bachelor of Science in Information Technology', 'BSIT'),
@@ -73,3 +74,11 @@ INSERT INTO programs (institute_id, name, code) VALUES
 (2, 'Bachelor of Science in Accountancy', 'BSA'),
 (2, 'Bachelor of Science in Business Admin', 'BSBA')
 ON DUPLICATE KEY UPDATE code=code;
+
+-- Seed Admins (Heads of Institute)
+-- Password is 'admin123' (hashed)
+INSERT INTO users (school_id, full_name, email, password_hash, role, institute_id, is_verified, status) VALUES 
+('ADMIN-ICDI', 'Head of ICDI', 'admin.icdi@kld.edu.ph', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin', 1, 1, 'active'),
+('ADMIN-IBM', 'Head of IBM', 'admin.ibm@kld.edu.ph', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin', 2, 1, 'active'),
+('ADMIN-IOE', 'Head of IOE', 'admin.ioe@kld.edu.ph', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin', 3, 1, 'active')
+ON DUPLICATE KEY UPDATE role='admin';
