@@ -100,8 +100,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['register_step1'])) {
         } else {
             // Create new unverified user
             $hashed_pwd = password_hash($password, PASSWORD_DEFAULT);
-            $stmtIns = $conn->prepare("INSERT INTO users (email, password_hash, is_verified, role) VALUES (?, ?, 0, 'student')");
-            $stmtIns->bind_param("ss", $email, $hashed_pwd);
+            $school_id_null = NULL;
+            $stmtIns = $conn->prepare("INSERT INTO users (email, password_hash, is_verified, role, school_id) VALUES (?, ?, 0, 'student', ?)");
+            $stmtIns->bind_param("sss", $email, $hashed_pwd, $school_id_null);
             
             if ($stmtIns->execute()) {
                 // Generate OTP

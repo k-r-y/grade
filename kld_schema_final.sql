@@ -20,8 +20,8 @@ CREATE TABLE IF NOT EXISTS programs (
 -- 3. USERS: Stores both Students and Teachers
 CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    school_id VARCHAR(50) NOT NULL UNIQUE, -- KLD-2024-XXXX
-    full_name VARCHAR(100) NOT NULL,
+    school_id VARCHAR(50) DEFAULT NULL UNIQUE, -- KLD-2024-XXXX (Nullable during registration)
+    full_name VARCHAR(100) DEFAULT NULL, -- Nullable during registration
     email VARCHAR(100) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
     role ENUM('student', 'teacher', 'admin') DEFAULT 'student',
