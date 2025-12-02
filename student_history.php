@@ -119,8 +119,14 @@ $overall_gwa = $total_units > 0 ? number_format($total_grade_points / $total_uni
                 <h1 class="vds-h2">Academic History</h1>
                 <p class="vds-text-muted">Complete record of your grades and academic performance</p>
             </div>
-            <div>
-                <button id="downloadPdf" class="vds-btn vds-btn-secondary me-2">
+            <div class="d-flex align-items-center gap-2">
+                <select id="gradeDisplayFilter" class="form-select w-auto d-print-none">
+                    <option value="all">Show All Grades</option>
+                    <option value="midterm">Midterm Only</option>
+                    <option value="final">Final Only</option>
+                    <option value="semestral">Semestral Only</option>
+                </select>
+                <button id="downloadPdf" class="vds-btn vds-btn-secondary">
                     <i class="bi bi-file-earmark-pdf me-1"></i>Download PDF
                 </button>
                 <button id="printGrades" class="vds-btn vds-btn-primary">
@@ -226,8 +232,9 @@ $overall_gwa = $total_units > 0 ? number_format($total_grade_points / $total_uni
                                             <th>Subject Name</th>
                                             <th>Units</th>
                                             <th>Section</th>
-                                            <th>Raw Grade</th>
-                                            <th>Grade</th>
+                                            <th class="col-midterm">Midterm</th>
+                                            <th class="col-final">Final</th>
+                                            <th class="col-semestral">Semestral</th>
                                             <th>Remarks</th>
                                             <th class="text-end pe-4">Date Posted</th>
                                         </tr>
@@ -250,12 +257,17 @@ $overall_gwa = $total_units > 0 ? number_format($total_grade_points / $total_uni
                                                     }
                                                     echo htmlspecialchars($sec); 
                                                 ?></td>
-                                                <td><?php echo htmlspecialchars($grade['raw_grade'] ?? '-'); ?></td>
-                                                <td>
+                                                <td class="col-midterm"><?php echo $grade['midterm'] ? number_format($grade['midterm'], 2) : '-'; ?></td>
+                                                <td class="col-final"><?php echo $grade['final'] ? number_format($grade['final'], 2) : '-'; ?></td>
+                                                <td class="col-semestral">
                                                     <?php 
                                                         $g = floatval($grade['grade']);
-                                                        $color = $g <= 3.0 ? 'text-success' : 'text-danger';
-                                                        echo "<span class='fw-bold $color'>" . number_format($g, 2) . "</span>";
+                                                        if ($g > 0) {
+                                                            $color = $g <= 3.0 ? 'text-success' : 'text-danger';
+                                                            echo "<span class='fw-bold $color'>" . number_format($g, 2) . "</span>";
+                                                        } else {
+                                                            echo "-";
+                                                        }
                                                     ?>
                                                 </td>
                                                 <td><?php echo htmlspecialchars($grade['remarks'] ?? '-'); ?></td>
@@ -355,6 +367,67 @@ $overall_gwa = $total_units > 0 ? number_format($total_grade_points / $total_uni
         document.getElementById('printGrades').addEventListener('click', () => {
             window.print();
         });
+
+        // Grade Filter Logic
+        const gradeFilter = document.getElementById('gradeDisplayFilter');
+        if (gradeFilter) {
+            gradeFilter.addEventListener('change', (e) => {
+                const val = e.target.value;
+                const midterms = document.querySelectorAll('.col-midterm');
+                const finals = document.querySelectorAll('.col-final');
+                const semestrals = document.querySelectorAll('.col-semestral');
+                const rows = document.querySelectorAll('tbody tr');
+                const sections = document.querySelectorAll('.semester-section');
+
+                // Reset all visibility
+                midterms.forEach(el => el.style.display = '');
+                finals.forEach(el => el.style.display = '');
+                semestrals.forEach(el => el.style.display = '');
+                rows.forEach(row => row.style.display = '');
+                sections.forEach(sec => sec.style.display = '');
+
+                if (val === 'all') return;
+
+                // Hide columns
+                if (val === 'midterm') {
+                    finals.forEach(el => el.style.display = 'none');
+                    semestrals.forEach(el => el.style.display = 'none');
+                } else if (val === 'final') {
+                    midterms.forEach(el => el.style.display = 'none');
+                    semestrals.forEach(el => el.style.display = 'none');
+                } else if (val === 'semestral') {
+                    midterms.forEach(el => el.style.display = 'none');
+                    finals.forEach(el => el.style.display = 'none');
+                }
+
+                // Filter rows based on content
+                rows.forEach(row => {
+                    const midCell = row.querySelector('.col-midterm');
+                    const finCell = row.querySelector('.col-final');
+                    const semCell = row.querySelector('.col-semestral');
+                    
+                    let shouldShow = true;
+                    
+                    if (val === 'midterm') {
+                        if (!midCell || midCell.textContent.trim() === '-') shouldShow = false;
+                    } else if (val === 'final') {
+                        if (!finCell || finCell.textContent.trim() === '-') shouldShow = false;
+                    } else if (val === 'semestral') {
+                        if (!semCell || semCell.textContent.trim() === '-') shouldShow = false;
+                    }
+                    
+                    if (!shouldShow) row.style.display = 'none';
+                });
+
+                // Hide empty semester sections
+                sections.forEach(section => {
+                    const visibleRows = section.querySelectorAll('tbody tr:not([style*="display: none"])');
+                    if (visibleRows.length === 0) {
+                        section.style.display = 'none';
+                    }
+                });
+            });
+        }
     </script>
 
     <style media="print">

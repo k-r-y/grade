@@ -12,6 +12,27 @@ $user_id = $_SESSION['user_id'];
 $role = $_SESSION['role'];
 $full_name = $_SESSION['full_name'];
 
+// Handle Fetch Students for Class (AJAX)
+if ($role === 'teacher' && isset($_GET['action']) && $_GET['action'] === 'get_students' && isset($_GET['class_id'])) {
+    $class_id = intval($_GET['class_id']);
+    $stmt = $conn->prepare("
+        SELECT u.id, u.full_name 
+        FROM enrollments e 
+        JOIN users u ON e.student_id = u.id 
+        WHERE e.class_id = ?
+        ORDER BY u.full_name ASC
+    ");
+    $stmt->bind_param("i", $class_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $students = [];
+    while ($row = $result->fetch_assoc()) {
+        $students[] = $row;
+    }
+    echo json_encode($students);
+    exit();
+}
+
 // Handle Post Announcement (Teacher Only)
 if ($role === 'teacher' && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['post_announcement'])) {
     $title = trim($_POST['title']);
@@ -22,46 +43,74 @@ if ($role === 'teacher' && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST
     if (empty($title) || empty($content)) {
         $error = "Title and Content are required.";
     } else {
-        $stmt = $conn->prepare("INSERT INTO announcements (class_id, teacher_id, title, content, priority) VALUES (?, ?, ?, ?, ?)");
-        $stmt->bind_param("iisss", $class_id, $user_id, $title, $content, $priority);
-        
-        if ($stmt->execute()) {
-            $success = "Announcement posted successfully!";
+        $conn->begin_transaction();
+        try {
+            $stmt = $conn->prepare("INSERT INTO announcements (class_id, teacher_id, title, content, priority) VALUES (?, ?, ?, ?, ?)");
+            $stmt->bind_param("iisss", $class_id, $user_id, $title, $content, $priority);
+            $stmt->execute();
+            $announcement_id = $conn->insert_id;
+
+            $recipients_list = []; // For email
             
-            // Send Email Notifications
-            if ($class_id) {
-                // Send to students in the specific class
+            // Handle Recipients
+            $recipient_type = $_POST['recipient_type'] ?? 'all';
+            if ($class_id && $recipient_type === 'selected' && !empty($_POST['student_ids'])) {
+                $student_ids = $_POST['student_ids'];
+                $stmtR = $conn->prepare("INSERT INTO announcement_recipients (announcement_id, student_id) VALUES (?, ?)");
+                foreach ($student_ids as $sid) {
+                    $sid = intval($sid);
+                    $stmtR->bind_param("ii", $announcement_id, $sid);
+                    $stmtR->execute();
+                }
+                
+                // Fetch emails for selected students
+                if (count($student_ids) > 0) {
+                    $ids_placeholder = implode(',', array_fill(0, count($student_ids), '?'));
+                    $stmtEmail = $conn->prepare("SELECT email FROM users WHERE id IN ($ids_placeholder)");
+                    $stmtEmail->bind_param(str_repeat('i', count($student_ids)), ...$student_ids);
+                    $stmtEmail->execute();
+                    $resEmail = $stmtEmail->get_result();
+                    while ($rowE = $resEmail->fetch_assoc()) {
+                        if (!empty($rowE['email'])) $recipients_list[] = $rowE['email'];
+                    }
+                }
+            } elseif ($class_id) {
+                // All students in class
                 $stmtS = $conn->prepare("SELECT u.email FROM enrollments e JOIN users u ON e.student_id = u.id WHERE e.class_id = ?");
                 $stmtS->bind_param("i", $class_id);
                 $stmtS->execute();
                 $resS = $stmtS->get_result();
-                
-                $recipients = [];
                 while ($rowS = $resS->fetch_assoc()) {
                     if (!empty($rowS['email'])) {
-                        $recipients[] = $rowS['email'];
+                        $recipients_list[] = $rowS['email'];
                     }
                 }
-
-                if (!empty($recipients)) {
-                    $emailBody = "
-                        <div style='font-family: Arial, sans-serif; padding: 20px; color: #333;'>
-                            <h2 style='color: #0D3B2E;'>New Announcement</h2>
-                            <p>Dear Student,</p>
-                            <p>A new announcement has been posted for your class.</p>
-                            <hr>
-                            <h3>$title</h3>
-                            <p>$content</p>
-                            <hr>
-                            <p>Please log in to the portal for more details.</p>
-                        </div>
-                    ";
-                    // Send batch email
-                    sendEmailBCC($recipients, "New Announcement: $title", $emailBody);
-                }
             }
-        } else {
-            $error = "Failed to post announcement: " . $conn->error;
+
+            $conn->commit();
+            $success = "Announcement posted successfully!";
+
+            // Send Email Notifications
+            if (!empty($recipients_list)) {
+                $emailBody = "
+                    <div style='font-family: Arial, sans-serif; padding: 20px; color: #333;'>
+                        <h2 style='color: #0D3B2E;'>New Announcement</h2>
+                        <p>Dear Student,</p>
+                        <p>A new announcement has been posted for your class.</p>
+                        <hr>
+                        <h3>$title</h3>
+                        <p>$content</p>
+                        <hr>
+                        <p>Please log in to the portal for more details.</p>
+                    </div>
+                ";
+                // Send batch email
+                sendEmailBCC($recipients_list, "New Announcement: $title", $emailBody);
+            }
+
+        } catch (Exception $e) {
+            $conn->rollback();
+            $error = "Failed to post announcement: " . $e->getMessage();
         }
     }
 }
@@ -85,6 +134,7 @@ if ($role === 'student') {
     // Student View: 
     // 1. General announcements (class_id IS NULL) BUT only from teachers they have classes with.
     // 2. Class-specific announcements (class_id IN enrolled classes).
+    //    AND (No specific recipients defined OR Student is in recipients)
     $stmt = $conn->prepare("
         SELECT a.*, u.full_name as teacher_name, c.subject_code, c.section,
                CASE WHEN ar.id IS NOT NULL THEN 1 ELSE 0 END as is_read
@@ -93,16 +143,28 @@ if ($role === 'student') {
         LEFT JOIN classes c ON a.class_id = c.id
         LEFT JOIN announcement_reads ar ON a.id = ar.announcement_id AND ar.user_id = ?
         WHERE 
-            (a.class_id IS NULL AND a.teacher_id IN (
-                SELECT DISTINCT teacher_id FROM classes 
-                JOIN enrollments ON classes.id = enrollments.class_id 
-                WHERE enrollments.student_id = ?
-            ))
+            (
+                -- General Announcements from my teachers
+                (a.class_id IS NULL AND a.teacher_id IN (
+                    SELECT DISTINCT teacher_id FROM classes 
+                    JOIN enrollments ON classes.id = enrollments.class_id 
+                    WHERE enrollments.student_id = ?
+                ))
+            )
             OR 
-            (a.class_id IN (SELECT class_id FROM enrollments WHERE student_id = ?))
+            (
+                -- Class Announcements I am enrolled in
+                a.class_id IN (SELECT class_id FROM enrollments WHERE student_id = ?)
+                AND (
+                    -- Either no specific recipients (sent to all)
+                    NOT EXISTS (SELECT 1 FROM announcement_recipients WHERE announcement_id = a.id)
+                    -- OR I am a recipient
+                    OR EXISTS (SELECT 1 FROM announcement_recipients WHERE announcement_id = a.id AND student_id = ?)
+                )
+            )
         ORDER BY a.created_at DESC
     ");
-    $stmt->bind_param("iii", $user_id, $user_id, $user_id);
+    $stmt->bind_param("iiii", $user_id, $user_id, $user_id, $user_id);
 } elseif ($role === 'teacher') {
     $stmt = $conn->prepare("
         SELECT a.*, u.full_name as teacher_name, c.subject_code, c.section, 1 as is_read
@@ -261,7 +323,7 @@ if ($role === 'teacher') {
                         </div>
                         <div class="vds-form-group">
                             <label class="vds-label">Class (Optional)</label>
-                            <select name="class_id" class="vds-select">
+                            <select name="class_id" id="classSelect" class="vds-select" onchange="toggleRecipients()">
                                 <option value="">General (All Students)</option>
                                 <?php foreach ($teacher_classes as $cls): ?>
                                     <option value="<?php echo $cls['id']; ?>">
@@ -269,7 +331,24 @@ if ($role === 'teacher') {
                                     </option>
                                 <?php endforeach; ?>
                             </select>
-                            <small class="text-muted">Leave empty for a general announcement.</small>
+                        </div>
+
+                        <div id="recipientSection" class="vds-form-group" style="display: none;">
+                            <label class="vds-label">Recipients</label>
+                            <div class="d-flex gap-3 mb-2">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="recipient_type" value="all" id="recipientAll" checked onchange="toggleStudentList()">
+                                    <label class="form-check-label" for="recipientAll">All Students in Class</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="recipient_type" value="selected" id="recipientSelected" onchange="toggleStudentList()">
+                                    <label class="form-check-label" for="recipientSelected">Selected Students</label>
+                                </div>
+                            </div>
+                            
+                            <div id="studentListContainer" class="border rounded p-3" style="display: none; max-height: 200px; overflow-y: auto;">
+                                <div class="text-center text-muted"><small>Select a class to load students...</small></div>
+                            </div>
                         </div>
                         <div class="vds-form-group">
                             <label class="vds-label">Priority</label>
@@ -343,6 +422,47 @@ if ($role === 'teacher') {
                 })
                 .catch(error => console.error('Error:', error));
             }
+        }
+
+        function toggleRecipients() {
+            const classSelect = document.getElementById('classSelect');
+            const recipientSection = document.getElementById('recipientSection');
+            const studentListContainer = document.getElementById('studentListContainer');
+            
+            if (classSelect.value) {
+                recipientSection.style.display = 'block';
+                // Load students
+                fetch(`announcements.php?action=get_students&class_id=${classSelect.value}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        let html = '';
+                        if (data.length > 0) {
+                            data.forEach(student => {
+                                html += `
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="student_ids[]" value="${student.id}" id="student-${student.id}">
+                                        <label class="form-check-label" for="student-${student.id}">
+                                            ${student.full_name}
+                                        </label>
+                                    </div>
+                                `;
+                            });
+                        } else {
+                            html = '<div class="text-muted text-center">No students found in this class.</div>';
+                        }
+                        studentListContainer.innerHTML = html;
+                    });
+            } else {
+                recipientSection.style.display = 'none';
+                document.getElementById('recipientAll').checked = true;
+                toggleStudentList();
+            }
+        }
+
+        function toggleStudentList() {
+            const isSelected = document.getElementById('recipientSelected').checked;
+            const list = document.getElementById('studentListContainer');
+            list.style.display = isSelected ? 'block' : 'none';
         }
     </script>
 </body>

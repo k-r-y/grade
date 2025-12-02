@@ -17,6 +17,22 @@ function sendOTP($email, $otp) {
     return sendEmail($email, $subject, $body);
 }
 
+// Helper: Censor Email for Display (Privacy)
+function censorEmail($email) {
+    if (strpos($email, '@') === false) return $email;
+    
+    list($username, $domain) = explode('@', $email);
+    $len = strlen($username);
+    
+    if ($len <= 2) {
+        $censored = $username[0] . '*';
+    } else {
+        $censored = $username[0] . str_repeat('*', $len - 2) . $username[$len - 1];
+    }
+    
+    return $censored . '@' . $domain;
+}
+
 // --- Session Persistence Logic ---
 // Determine the current step based on session or default to 1
 $session_step = $_SESSION['register_step'] ?? 1;
@@ -322,7 +338,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['complete_profile'])) {
                 <!-- STEP 2: Verify OTP -->
                 <div class="text-center mb-4">
                     <h2 class="vds-h2">Verify Email</h2>
-                    <p class="vds-text-muted">Step 2 of 3: Enter the code sent to <strong><?php echo htmlspecialchars($_SESSION['verify_email']); ?></strong></p>
+                    <p class="vds-text-muted">Step 2 of 3: Enter the code sent to <strong><?php echo htmlspecialchars(censorEmail($_SESSION['verify_email'])); ?></strong></p>
                 </div>
                 <?php if($error): ?><div class="vds-pill vds-pill-fail mb-4 w-100 justify-content-center"><?php echo $error; ?></div><?php endif; ?>
                 <?php if($success): ?><div class="vds-pill vds-pill-pass mb-4 w-100 justify-content-center"><?php echo $success; ?></div><?php endif; ?>

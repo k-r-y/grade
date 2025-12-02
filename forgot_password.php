@@ -22,19 +22,27 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['request_reset'])) {
         $stmtOtp->bind_param("sss", $email, $otp, $expires_at);
         $stmtOtp->execute();
         
-        $_SESSION['reset_email'] = $email;
-        
         $subject = 'Password Reset Code';
         $body = "Your password reset code is <b>$otp</b>. Expires in 10 minutes.";
         
-        if (sendEmail($email, $subject, $body)) {
-            header("Location: forgot_password.php?step=2");
-            exit();
-        } else {
-            $error = "Failed to send email.";
+        if (!sendEmail($email, $subject, $body)) {
+            // Log error internally if possible, but for now we might have to show a generic error or just fail silently to be secure.
+            // However, if we fail silently, the user waits for an email that never comes.
+            // If we show "Failed to send", we leak existence.
+            // For this specific request "remove all the data... refactor... for security", 
+            // the priority is likely removing the "Email not found" message.
+            $error = "System error. Please try again later."; 
         }
     } else {
-        $error = "Email not found.";
+        // Simulate email sending delay to prevent timing attacks
+        sleep(5);
+    }
+    
+    // Always set session and redirect if no system error
+    if (empty($error)) {
+        $_SESSION['reset_email'] = $email;
+        header("Location: forgot_password.php?step=2");
+        exit();
     }
 }
 
@@ -53,6 +61,38 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['verify_otp'])) {
         exit();
     } else {
         $error = "Invalid or expired OTP.";
+    }
+}
+
+// Resend OTP
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['resend_otp'])) {
+    $email = $_SESSION['reset_email'] ?? '';
+    
+    if (!empty($email)) {
+        // Generate new OTP
+        $otp = rand(100000, 999999);
+        $expires_at = date('Y-m-d H:i:s', time() + 600);
+        
+        // Delete old OTP codes for this email
+        $conn->query("DELETE FROM verification_codes WHERE email = '$email'");
+        
+        // Insert new OTP
+        $stmtOtp = $conn->prepare("INSERT INTO verification_codes (email, code, expires_at) VALUES (?, ?, ?)");
+        $stmtOtp->bind_param("sss", $email, $otp, $expires_at);
+        $stmtOtp->execute();
+        
+        // Send email
+        $subject = 'Password Reset Code';
+        $body = "Your password reset code is <b>$otp</b>. Expires in 10 minutes.";
+        
+        if (sendEmail($email, $subject, $body)) {
+            $success = "A new code has been sent to your email.";
+        } else {
+            $error = "Failed to send code. Please try again.";
+        }
+    } else {
+        header("Location: forgot_password.php?step=1");
+        exit();
     }
 }
 
@@ -132,13 +172,28 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['reset_password'])) {
                     <h2 class="vds-h2">Verify Code</h2>
                     <p class="vds-text-muted">Enter the code sent to your email.</p>
                 </div>
+                <?php if($success): ?><div class="vds-pill vds-pill-success mb-4 w-100 justify-content-center"><?php echo $success; ?></div><?php endif; ?>
                 <?php if($error): ?><div class="vds-pill vds-pill-fail mb-4 w-100 justify-content-center"><?php echo $error; ?></div><?php endif; ?>
                 <form method="POST">
                     <div class="vds-form-group">
-                        <input type="text" name="otp" class="vds-input text-center" style="font-size: 1.5rem; letter-spacing: 5px;" placeholder="######" required>
+                        <input type="text" name="otp" class="vds-input text-center" style="font-size: 1.5rem; letter-spacing: 5px;" placeholder="######" maxlength="6" required>
                     </div>
                     <button type="submit" name="verify_otp" class="vds-btn vds-btn-primary w-100">Verify</button>
                 </form>
+                
+                <div class="text-center mt-4">
+                    <form method="POST" style="display: inline;">
+                        <button type="submit" name="resend_otp" class="btn btn-link" style="text-decoration: none; color: var(--vds-accent); padding: 0;">
+                            Didn't receive the code? Resend
+                        </button>
+                    </form>
+                </div>
+                
+                <div class="text-center mt-2">
+                    <a href="forgot_password.php?step=1" class="btn btn-link" style="text-decoration: none; color: var(--vds-text-muted); font-size: 0.9rem;">
+                        ← Wrong email? Go back
+                    </a>
+                </div>
 
             <?php elseif ($step == '3'): ?>
                 <div class="text-center mb-4">

@@ -58,6 +58,13 @@ if ($action === 'bulk_upload_grades') {
     $input = json_decode(file_get_contents('php://input'), true);
     $grades = $input['grades'] ?? [];
     $class_id = isset($input['class_id']) ? intval($input['class_id']) : 0;
+    $grading_period = $input['grading_period'] ?? 'grade'; // Default to 'grade' (semestral)
+    
+    // Map grading period to column name
+    $target_column = 'grade';
+    if ($grading_period === 'midterm') $target_column = 'midterm';
+    if ($grading_period === 'final') $target_column = 'final';
+    if ($grading_period === 'grade') $target_column = 'grade'; // Semestral
     
     $section = '';
     $subject_code = '';
@@ -106,18 +113,22 @@ if ($action === 'bulk_upload_grades') {
     $conn->begin_transaction();
     
     try {
-        $stmtFindStudent = $conn->prepare("SELECT id, full_name, email FROM users WHERE school_id = ? AND role = 'student'");
+        $stmtFindStudent = $conn->prepare("SELECT id, full_name, email, role FROM users WHERE school_id = ?");
         $stmtCheckEnrollment = $conn->prepare("SELECT id FROM enrollments WHERE class_id = ? AND student_id = ?");
         $stmtEnroll = $conn->prepare("INSERT INTO enrollments (class_id, student_id) VALUES (?, ?)");
 
         $studentsToNotify = [];
 
-        // Note: We are storing the TRANSMUTED grade in the 'grade' column and RAW in 'raw_grade'.
+        // Note: We are storing the TRANSMUTED grade in the target column and RAW in 'raw_grade' (though raw_grade might need to be period specific too? 
+        // For now, let's assume raw_grade is just the latest raw grade uploaded, or we should have added raw_midterm etc. 
+        // Given the request didn't specify raw columns for periods, we will just update the main grade column.
+        // Actually, to be safe, let's just update the specific column.
+        
         $stmtUpsert = $conn->prepare("
-            INSERT INTO grades (student_id, subject_code, subject_name, grade, raw_grade, remarks, teacher_id, section, semester, class_id) 
+            INSERT INTO grades (student_id, subject_code, subject_name, $target_column, raw_grade, remarks, teacher_id, section, semester, class_id) 
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON DUPLICATE KEY UPDATE 
-                grade = VALUES(grade), 
+                $target_column = VALUES($target_column), 
                 raw_grade = VALUES(raw_grade),
                 remarks = VALUES(remarks),
                 subject_name = VALUES(subject_name),
@@ -151,6 +162,12 @@ if ($action === 'bulk_upload_grades') {
             $res = $stmtFindStudent->get_result();
             
             if ($student = $res->fetch_assoc()) {
+                // Check if role is student
+                if ($student['role'] !== 'student') {
+                    $errors[] = "User $student_school_id exists but is a {$student['role']}, not a student.";
+                    continue;
+                }
+
                 $student_id = $student['id'];
 
                 if ($class_id > 0) {
@@ -267,7 +284,7 @@ if ($action === 'validate_students') {
     $invalid = [];
     $not_enrolled = [];
     
-    $stmt = $conn->prepare("SELECT id, school_id, full_name FROM users WHERE school_id = ? AND role = 'student'");
+    $stmt = $conn->prepare("SELECT id, school_id, full_name, role FROM users WHERE school_id = ?");
     $stmtCheckEnrollment = $conn->prepare("SELECT id FROM enrollments WHERE class_id = ? AND student_id = ?");
     
     foreach ($student_ids as $school_id) {
@@ -279,6 +296,14 @@ if ($action === 'validate_students') {
         $result = $stmt->get_result();
         
         if ($row = $result->fetch_assoc()) {
+            if ($row['role'] !== 'student') {
+                $invalid[] = [
+                    'school_id' => $school_id,
+                    'error' => "User is a {$row['role']}"
+                ];
+                continue;
+            }
+
             if ($class_id > 0) {
                 $stmtCheckEnrollment->bind_param("ii", $class_id, $row['id']);
                 $stmtCheckEnrollment->execute();
@@ -293,7 +318,10 @@ if ($action === 'validate_students') {
                 'name' => $row['full_name']
             ];
         } else {
-            $invalid[] = $school_id;
+            $invalid[] = [
+                'school_id' => $school_id,
+                'error' => 'Not Found'
+            ];
         }
     }
     
@@ -524,7 +552,7 @@ if ($action === 'get_class_students') {
     }
 
     $stmt = $conn->prepare("
-        SELECT u.id, u.school_id, u.full_name, u.email, e.joined_at, g.grade, g.raw_grade, g.remarks
+        SELECT u.id, u.school_id, u.full_name, u.email, e.joined_at, g.grade, g.midterm, g.final, g.raw_grade, g.remarks
         FROM enrollments e 
         JOIN users u ON e.student_id = u.id 
         LEFT JOIN grades g ON g.student_id = u.id AND g.class_id = ?

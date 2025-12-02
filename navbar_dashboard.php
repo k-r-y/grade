@@ -29,14 +29,26 @@ if (session_status() == PHP_SESSION_NONE) {
                         FROM announcements a 
                         WHERE (a.class_id IS NULL OR a.class_id IN (SELECT class_id FROM enrollments WHERE student_id = ?))
                         AND a.created_at > ?
+                        AND NOT EXISTS (SELECT 1 FROM announcement_reads ar WHERE ar.announcement_id = a.id AND ar.user_id = ?)
                     ");
-                    $stmtAnn->bind_param("is", $uid, $three_days_ago);
+                    $stmtAnn->bind_param("isi", $uid, $three_days_ago, $uid);
                 } elseif ($u_role === 'teacher') {
-                    $stmtAnn = $conn->prepare("SELECT COUNT(*) as count FROM announcements WHERE class_id IS NULL AND created_at > ?");
-                    $stmtAnn->bind_param("s", $three_days_ago);
+                    $stmtAnn = $conn->prepare("
+                        SELECT COUNT(*) as count 
+                        FROM announcements a
+                        WHERE a.class_id IS NULL 
+                        AND a.created_at > ?
+                        AND NOT EXISTS (SELECT 1 FROM announcement_reads ar WHERE ar.announcement_id = a.id AND ar.user_id = ?)
+                    ");
+                    $stmtAnn->bind_param("si", $three_days_ago, $uid);
                 } else {
-                    $stmtAnn = $conn->prepare("SELECT COUNT(*) as count FROM announcements WHERE created_at > ?");
-                    $stmtAnn->bind_param("s", $three_days_ago);
+                    $stmtAnn = $conn->prepare("
+                        SELECT COUNT(*) as count 
+                        FROM announcements a
+                        WHERE a.created_at > ?
+                        AND NOT EXISTS (SELECT 1 FROM announcement_reads ar WHERE ar.announcement_id = a.id AND ar.user_id = ?)
+                    ");
+                    $stmtAnn->bind_param("si", $three_days_ago, $uid);
                 }
                 
                 if (isset($stmtAnn)) {

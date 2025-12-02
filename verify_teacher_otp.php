@@ -54,6 +54,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 <!-- Simple OTP form -->
 <form method="POST">
     <label>Enter OTP:</label>
-    <input type="text" name="otp" required>
+    <input type="text" name="otp" maxlength="6" required>
     <button type="submit">Verify OTP</button>
 </form>

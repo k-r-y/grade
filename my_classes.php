@@ -93,7 +93,7 @@ require 'check_profile.php';
                     <form id="createClassForm">
                         <div class="vds-form-group">
                             <label class="vds-label">Subject Code <span class="text-danger">*</span></label>
-                            <input type="text" name="subject_code" class="vds-input" placeholder="e.g. IT 101" required>
+                            <input type="text" name="subject_code" class="vds-input" placeholder="e.g. IT 101" maxlength="50" required>
                         </div>
                         <div class="vds-form-group">
                             <label class="vds-label">Subject Description</label>
@@ -108,7 +108,7 @@ require 'check_profile.php';
                         </div>
                         <div class="vds-form-group">
                             <label class="vds-label">Section <span class="text-danger">*</span></label>
-                            <input type="text" name="section" class="vds-input" placeholder="e.g. 209" required>
+                            <input type="text" name="section" class="vds-input" placeholder="e.g. 209" maxlength="50" required>
                         </div>
                         <div class="vds-form-group">
                             <label class="vds-label">Semester</label>
@@ -159,7 +159,7 @@ require 'check_profile.php';
                         <input type="hidden" name="class_id">
                         <div class="vds-form-group">
                             <label class="vds-label">Subject Code <span class="text-danger">*</span></label>
-                            <input type="text" name="subject_code" class="vds-input" required>
+                            <input type="text" name="subject_code" class="vds-input" maxlength="50" required>
                         </div>
                         <div class="vds-form-group">
                             <label class="vds-label">Subject Description</label>
@@ -173,7 +173,7 @@ require 'check_profile.php';
                         </div>
                         <div class="vds-form-group">
                             <label class="vds-label">Section <span class="text-danger">*</span></label>
-                            <input type="text" name="section" class="vds-input" required>
+                            <input type="text" name="section" class="vds-input" maxlength="50" required>
                         </div>
                         <div class="vds-form-group">
                             <label class="vds-label">Semester</label>

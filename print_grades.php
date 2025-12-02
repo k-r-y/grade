@@ -9,6 +9,26 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'student') {
 
 $user_id = $_SESSION['user_id'];
 $full_name = $_SESSION['full_name'];
+$school_id = $_SESSION['school_id'] ?? 'N/A';
+
+// Fetch grades
+$stmt = $conn->prepare("
+    SELECT g.*, c.units, c.subject_description 
+    FROM grades g
+    LEFT JOIN classes c ON g.class_id = c.id
+    WHERE g.student_id = ?
+    ORDER BY g.semester DESC, g.subject_code ASC
+");
+$stmt->bind_param("i", $user_id);
+$stmt->execute();
+$result = $stmt->get_result();
+$grades = [];
+while ($row = $result->fetch_assoc()) {
+    if (empty($row['subject_name']) && !empty($row['subject_description'])) {
+        $row['subject_name'] = $row['subject_description'];
+    }
+    $grades[] = $row;
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -45,11 +65,14 @@ $full_name = $_SESSION['full_name'];
             border: 1px solid #000;
             padding: 10px;
             text-align: left;
+            font-size: 0.9rem;
         }
         .grade-table th {
             background-color: #f0f0f0;
             font-weight: bold;
+            text-align: center;
         }
+        .text-center { text-align: center !important; }
         @media print {
             .no-print { display: none; }
         }
@@ -72,7 +95,7 @@ $full_name = $_SESSION['full_name'];
         <div class="row">
             <div class="col-6">
                 <strong>Name:</strong> <?php echo htmlspecialchars($full_name); ?><br>
-                <strong>Student ID:</strong> <?php echo $_SESSION['email']; // Placeholder for ID ?><br>
+                <strong>Student ID:</strong> <?php echo htmlspecialchars($school_id); ?><br>
             </div>
             <div class="col-6 text-end">
                 <strong>Date Generated:</strong> <?php echo date('F d, Y'); ?><br>
@@ -86,18 +109,36 @@ $full_name = $_SESSION['full_name'];
             <tr>
                 <th>Subject Code</th>
                 <th>Description</th>
-                <th>Grade</th>
+                <th class="text-center">Units</th>
+                <th class="text-center">Midterm</th>
+                <th class="text-center">Final</th>
+                <th class="text-center">Semestral</th>
                 <th>Remarks</th>
             </tr>
         </thead>
         <tbody>
-            <!-- Fetch Data Here -->
-            <tr>
-                <td>IT 101</td>
-                <td>Introduction to Computing</td>
-                <td>1.50</td>
-                <td>Passed</td>
-            </tr>
+            <?php if (count($grades) > 0): ?>
+                <?php foreach ($grades as $grade): ?>
+                    <tr>
+                        <td><?php echo htmlspecialchars($grade['subject_code']); ?></td>
+                        <td><?php echo htmlspecialchars($grade['subject_name']); ?></td>
+                        <td class="text-center"><?php echo htmlspecialchars($grade['units'] ?? 3); ?></td>
+                        <td class="text-center"><?php echo $grade['midterm'] ? number_format($grade['midterm'], 2) : '-'; ?></td>
+                        <td class="text-center"><?php echo $grade['final'] ? number_format($grade['final'], 2) : '-'; ?></td>
+                        <td class="text-center fw-bold">
+                            <?php 
+                                $g = floatval($grade['grade']);
+                                echo $g > 0 ? number_format($g, 2) : '-';
+                            ?>
+                        </td>
+                        <td><?php echo htmlspecialchars($grade['remarks']); ?></td>
+                    </tr>
+                <?php endforeach; ?>
+            <?php else: ?>
+                <tr>
+                    <td colspan="7" class="text-center py-4">No grades found.</td>
+                </tr>
+            <?php endif; ?>
         </tbody>
     </table>
 

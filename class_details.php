@@ -77,6 +77,13 @@ if (!$class) {
                 </select>
             </div>
             <div class="col-md-3">
+                <select id="periodFilter" class="form-select">
+                    <option value="midterm">Midterm Grade</option>
+                    <option value="final">Final Grade</option>
+                    <option value="grade" selected>Semestral Grade</option>
+                </select>
+            </div>
+            <div class="col-md-2">
                 <select id="sortFilter" class="form-select">
                     <option value="name_asc">Name (A-Z)</option>
                     <option value="name_desc">Name (Z-A)</option>
@@ -128,7 +135,7 @@ if (!$class) {
                         <input type="hidden" name="program_id" value="<?php echo htmlspecialchars($class['program_id'] ?? ''); ?>">
                         <div class="vds-form-group">
                             <label class="vds-label">Subject Code <span class="text-danger">*</span></label>
-                            <input type="text" name="subject_code" class="vds-input" value="<?php echo htmlspecialchars($class['subject_code']); ?>" required>
+                            <input type="text" name="subject_code" class="vds-input" value="<?php echo htmlspecialchars($class['subject_code']); ?>" maxlength="50" required>
                         </div>
                         <div class="vds-form-group">
                             <label class="vds-label">Subject Description</label>
@@ -136,7 +143,7 @@ if (!$class) {
                         </div>
                         <div class="vds-form-group">
                             <label class="vds-label">Section <span class="text-danger">*</span></label>
-                            <input type="text" name="section" class="vds-input" value="<?php echo htmlspecialchars($class['section']); ?>" required>
+                            <input type="text" name="section" class="vds-input" value="<?php echo htmlspecialchars($class['section']); ?>" maxlength="50" required>
                         </div>
                         <div class="vds-form-group">
                             <label class="vds-label">Semester</label>
@@ -236,10 +243,12 @@ if (!$class) {
         // Filter Elements
         const searchInput = document.getElementById('searchInput');
         const remarksFilter = document.getElementById('remarksFilter');
+        const periodFilter = document.getElementById('periodFilter');
         const sortFilter = document.getElementById('sortFilter');
 
         searchInput.addEventListener('input', renderStudents);
         remarksFilter.addEventListener('change', renderStudents);
+        periodFilter.addEventListener('change', renderStudents);
         sortFilter.addEventListener('change', renderStudents);
 
 
@@ -356,7 +365,7 @@ if (!$class) {
                         <input type="hidden" name="class_id" value="<?php echo $class_id; ?>">
                         <div class="vds-form-group">
                             <label class="vds-label">Subject Code <span class="text-danger">*</span></label>
-                            <input type="text" name="subject_code" class="vds-input" value="<?php echo htmlspecialchars($class['subject_code']); ?>" required>
+                            <input type="text" name="subject_code" class="vds-input" value="<?php echo htmlspecialchars($class['subject_code']); ?>" maxlength="50" required>
                         </div>
                         <div class="vds-form-group">
                             <label class="vds-label">Subject Description</label>
@@ -364,7 +373,7 @@ if (!$class) {
                         </div>
                         <div class="vds-form-group">
                             <label class="vds-label">Section <span class="text-danger">*</span></label>
-                            <input type="text" name="section" class="vds-input" value="<?php echo htmlspecialchars($class['section']); ?>" required>
+                            <input type="text" name="section" class="vds-input" value="<?php echo htmlspecialchars($class['section']); ?>" maxlength="50" required>
                         </div>
                         <div class="vds-form-group">
                             <label class="vds-label">Semester</label>
@@ -441,7 +450,7 @@ if (!$class) {
 
         async function loadStudents() {
             try {
-                const res = await fetch(`api.php?action=get_class_students&class_id=${classId}`);
+                const res = await fetch(`api.php?action=get_class_students&class_id=${classId}&t=${new Date().getTime()}`);
                 const data = await res.json();
 
                 if (data.success) {
@@ -495,7 +504,14 @@ if (!$class) {
             filtered.forEach(student => {
                 const row = document.createElement('tr');
                 const rawGradeVal = student.raw_grade !== null ? student.raw_grade : '';
-                const gradeVal = student.grade !== null ? parseFloat(student.grade) : null;
+                const period = periodFilter.value;
+                let gradeVal = null;
+
+                if (period === 'midterm') gradeVal = student.midterm;
+                else if (period === 'final') gradeVal = student.final;
+                else gradeVal = student.grade;
+
+                gradeVal = gradeVal !== null ? parseFloat(gradeVal) : null;
                 
                 // Auto-calculate remarks
                 let calculatedRemarks = '';

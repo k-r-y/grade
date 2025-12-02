@@ -435,50 +435,6 @@
                 <strong>Approval:</strong> Upon Admin approval, the status
                 updates to <code>ACTIVE</code>, granting system access.
               </li>
-            </ul>
-          </div>
-        </div>
-      </section>
-
-      <section id="updates">
-        <h2 class="section-title">7. Recent Updates & Changelog</h2>
-        <div class="row g-4">
-          <div class="col-md-12">
-            <div class="feature-card">
-              <h4 class="mb-3 text-primary">
-                <i class="bi bi-stars me-2"></i>New Features
-              </h4>
-              <ul class="list-group list-group-flush">
-                <li class="list-group-item">
-                  <strong>GradeVault Architecture Overhaul:</strong>
-                  Restructured the application into dedicated role-based pages
-                  (<code>admin_*.php</code>, <code>teacher_*.php</code>,
-                  <code>student_*.php</code>) for better security and
-                  maintainability.
-                </li>
-                <li class="list-group-item">
-                  <strong>Dashboard Analytics:</strong> Enhanced Admin Dashboard
-                  with real-time charts for "Package Popularity" and "Event Type
-                  Distribution".
-                </li>
-                <li class="list-group-item">
-                  <strong>Account Recovery:</strong> Added a robust "Forgot
-                  Password" flow and "Archived Account Recovery" mechanism.
-                </li>
-                <li class="list-group-item">
-                  <strong>Ghost Student Fix:</strong> Improved the Excel upload
-                  process to automatically detect and enroll students who are in
-                  the grade file but not yet in the class roster.
-                </li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section id="testing">
-        <h2 class="section-title">8. Features Testing & Debugging Checklist</h2>
-        <p class="text-muted mb-4">
           Use this checklist to verify system functionality after any updates or
           deployments.
         </p>
@@ -496,56 +452,6 @@
                 <i class="bi bi-shield-lock me-2"></i> Authentication & Security
               </button>
             </h2>
-            <div
-              id="collapseAuth"
-              class="accordion-collapse collapse show"
-              data-bs-parent="#testingAccordion"
-            >
-              <div class="accordion-body">
-                <div class="form-check">
-                  <input class="form-check-input" type="checkbox" id="auth1" />
-                  <label class="form-check-label" for="auth1">
-                    <strong>Login:</strong> Verify successful login for Admin,
-                    Teacher, and Student with valid credentials.
-                  </label>
-                </div>
-                <div class="form-check">
-                  <input class="form-check-input" type="checkbox" id="auth2" />
-                  <label class="form-check-label" for="auth2">
-                    <strong>Invalid Login:</strong> Verify error message for
-                    incorrect password or non-existent email.
-                  </label>
-                </div>
-                <div class="form-check">
-                  <input class="form-check-input" type="checkbox" id="auth3" />
-                  <label class="form-check-label" for="auth3">
-                    <strong>Registration:</strong> Register a new Teacher/Student
-                    and verify they appear in the database (Pending for
-                    Teacher).
-                  </label>
-                </div>
-                <div class="form-check">
-                  <input class="form-check-input" type="checkbox" id="auth4" />
-                  <label class="form-check-label" for="auth4">
-                    <strong>Forgot Password:</strong> Request a reset link,
-                    verify email receipt (mock/log), and reset password
-                    successfully.
-                  </label>
-                </div>
-                <div class="form-check">
-                  <input class="form-check-input" type="checkbox" id="auth5" />
-                  <label class="form-check-label" for="auth5">
-                    <strong>Session Security:</strong> Try accessing
-                    <code>admin_dashboard.php</code> as a Student (should
-                    redirect/deny).
-                  </label>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Admin -->
-          <div class="accordion-item">
             <h2 class="accordion-header">
               <button
                 class="accordion-button collapsed"

@@ -98,6 +98,14 @@ while ($row = $result->fetch_assoc()) {
                     </select>
                     <small class="text-muted">Only classes you have created are shown here.</small>
                 </div>
+                <div class="col-md-12 mt-3">
+                    <label class="vds-label">Grading Period <span class="text-danger">*</span></label>
+                    <select id="gradingPeriod" class="vds-input">
+                        <option value="midterm">Midterm Grade</option>
+                        <option value="final">Final Grade</option>
+                        <option value="grade" selected>Semestral Grade (Final Rating)</option>
+                    </select>
+                </div>
             </div>
             
             <!-- Hidden Fields for Compatibility -->
@@ -112,6 +120,7 @@ while ($row = $result->fetch_assoc()) {
             <div class="text-center mb-4">
                 <h2 class="vds-h3"><i class="bi bi-cloud-arrow-up me-2"></i>Step 2: Upload Excel File</h2>
                 <p class="vds-text-muted">Upload an Excel file (.xlsx) with columns: <strong>Student ID</strong>, <strong>Grade</strong>, <strong>Remarks (optional)</strong></p>
+                <p class="small text-info"><i class="bi bi-info-circle me-1"></i>Uploading for: <strong id="periodLabel">Semestral Grade</strong></p>
                 <button id="downloadTemplate" class="vds-btn vds-btn-secondary btn-sm mt-2">
                     <i class="bi bi-download me-1"></i>Download Template
                 </button>
@@ -191,6 +200,8 @@ while ($row = $result->fetch_assoc()) {
         const subjectCodeInput = document.getElementById('subjectCode');
         const subjectNameInput = document.getElementById('subjectName');
         const semesterInput = document.getElementById('semester');
+        const gradingPeriodSelect = document.getElementById('gradingPeriod');
+        const periodLabel = document.getElementById('periodLabel');
 
         let parsedData = [];
         let validationResults = {};
@@ -234,6 +245,11 @@ while ($row = $result->fetch_assoc()) {
         }
 
         classSelect.addEventListener('change', updateClassState);
+        
+        gradingPeriodSelect.addEventListener('change', () => {
+            const text = gradingPeriodSelect.options[gradingPeriodSelect.selectedIndex].text;
+            periodLabel.textContent = text;
+        });
         
         // Run on load to handle pre-selection
         updateClassState();
@@ -444,27 +460,6 @@ while ($row = $result->fetch_assoc()) {
                         student_ids: studentIds,
                         class_id: currentClassId 
                     })
-                });
-
-                const result = await response.json();
-
-                if (result.success) {
-                    // Process validation results
-                    result.valid.forEach(student => {
-                        validationResults[student.school_id] = {
-                            valid: true,
-                            name: student.name,
-                            status: 'valid'
-                        };
-                    });
-
-                    result.invalid.forEach(school_id => {
-                        validationResults[school_id] = {
-                            valid: true,
-                            status: 'ghost_create'
-                        };
-                    });
-
                     if (result.not_enrolled) {
                         result.not_enrolled.forEach(school_id => {
                             validationResults[school_id] = {
@@ -543,6 +538,8 @@ while ($row = $result->fetch_assoc()) {
             const subjectCode = subjectCodeInput.value;
             const subjectName = subjectNameInput.value;
             const semester = semesterInput.value;
+            const gradingPeriod = gradingPeriodSelect.value;
+            const gradingPeriodText = gradingPeriodSelect.options[gradingPeriodSelect.selectedIndex].text;
 
             // Check for invalid grades
             const hasInvalidGrades = parsedData.some(row => {
@@ -557,7 +554,7 @@ while ($row = $result->fetch_assoc()) {
 
             const result = await Swal.fire({
                 title: 'Confirm Upload?',
-                html: `Class: ${subjectCode} - ${section}<br>Total Records: ${parsedData.length}<br><br>This will save/update grades in the database.`,
+                html: `Class: ${subjectCode} - ${section}<br>Period: <strong>${gradingPeriodText}</strong><br>Total Records: ${parsedData.length}<br><br>This will save/update grades in the database.`,
                 icon: 'question',
                 showCancelButton: true,
                 confirmButtonColor: '#0D3B2E',
@@ -580,7 +577,10 @@ while ($row = $result->fetch_assoc()) {
                         subject_code: subjectCode,
                         subject_name: subjectName,
                         semester: semester,
-                        class_id: currentClassId
+                        subject_name: subjectName,
+                        semester: semester,
+                        class_id: currentClassId,
+                        grading_period: gradingPeriod
                     })
                 });
 
