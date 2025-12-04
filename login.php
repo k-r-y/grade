@@ -1,7 +1,5 @@
 <?php
-$lifetime = 86400 * 7; // 7 days
-session_set_cookie_params($lifetime);
-session_start();
+require 'includes/session_config.php';
 ?>
 <!DOCTYPE html>
 <html lang="en">

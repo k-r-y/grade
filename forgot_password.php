@@ -1,5 +1,5 @@
 <?php
-session_start();
+require 'includes/session_config.php';
 require 'db_connect.php';
 require 'email_helper.php';
 

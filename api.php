@@ -506,7 +506,7 @@ if ($action === 'join_class') {
         file_put_contents('debug_log.txt', "Join Class Debug:\nClass ID: $class_id\nClass Program: $class_program_code\nStudent ID: $student_id\nStudent Program: {$student['program_code']}\n", FILE_APPEND);
 
         // Compare CODES instead of IDs to handle duplicate program entries
-        if (!empty($class_program_code) && $class_program_code !== $student['program_code']) {
+        if (!empty($class_program_code) && strcasecmp(trim($class_program_code), trim($student['program_code'])) !== 0) {
              echo json_encode(['success' => false, 'message' => 'You cannot join this class. Program restriction mismatch.']);
              exit;
         }

@@ -1,7 +1,5 @@
 <?php
-$lifetime = 86400 * 7; // 7 days
-session_set_cookie_params($lifetime);
-session_start();
+require 'includes/session_config.php';
 require 'db_connect.php';
 require 'PHPMailer-7.0.0/src/PHPMailer.php';
 require 'PHPMailer-7.0.0/src/SMTP.php';

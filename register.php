@@ -1,5 +1,5 @@
 <?php
-session_start();
+require 'includes/session_config.php';
 require 'db_connect.php';
 require 'email_helper.php';
 require 'csrf_helper.php';
@@ -53,14 +53,13 @@ $success = '';
 
 // --- STEP 1: Email & Password ---
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['register_step1'])) {
-    if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
-        die("Invalid CSRF Token");
-    }
     $email = trim($_POST['email']);
     $password = $_POST['password'];
     $confirm = $_POST['confirm_password'];
 
-    if (!str_ends_with($email, '@kld.edu.ph')) {
+    if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
+        $error = "Session expired or invalid token. Please try again.";
+    } elseif (!str_ends_with($email, '@kld.edu.ph')) {
         $error = "Registration is restricted to @kld.edu.ph emails only.";
     } elseif (strlen($password) < 8) {
         $error = "Password must be at least 8 characters long.";
@@ -138,58 +137,60 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['register_step1'])) {
 // --- STEP 2: Verify OTP ---
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['verify_otp'])) {
     if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
-        die("Invalid CSRF Token");
-    }
-    $entered_otp = trim($_POST['otp']);
-    $email = $_SESSION['verify_email'] ?? '';
-
-    if (empty($email)) {
-        header("Location: register.php");
-        exit();
-    }
-
-    // FIX: Use PHP time for comparison to avoid DB timezone mismatch
-    $current_time = date('Y-m-d H:i:s');
-    $stmt = $conn->prepare("SELECT * FROM verification_codes WHERE email = ? AND code = ? AND expires_at > ?");
-    $stmt->bind_param("sss", $email, $entered_otp, $current_time);
-    $stmt->execute();
-    $result = $stmt->get_result();
-
-    if ($result->num_rows > 0) {
-        // Mark verified
-        $stmtUpd = $conn->prepare("UPDATE users SET is_verified = 1 WHERE email = ?");
-        $stmtUpd->bind_param("s", $email);
-        $stmtUpd->execute();
-
-        // Cleanup OTPs
-        $conn->query("DELETE FROM verification_codes WHERE email = '$email'");
-        
-        $_SESSION['register_step'] = 3; // Advance progress
-        header("Location: register.php?step=3");
-        exit();
+        $error = "Session expired or invalid token. Please try again.";
     } else {
-        $error = "Invalid or expired OTP.";
+        $entered_otp = trim($_POST['otp']);
+        $email = $_SESSION['verify_email'] ?? '';
+
+        if (empty($email)) {
+            header("Location: register.php");
+            exit();
+        }
+
+        // FIX: Use PHP time for comparison to avoid DB timezone mismatch
+        $current_time = date('Y-m-d H:i:s');
+        $stmt = $conn->prepare("SELECT * FROM verification_codes WHERE email = ? AND code = ? AND expires_at > ?");
+        $stmt->bind_param("sss", $email, $entered_otp, $current_time);
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        if ($result->num_rows > 0) {
+            // Mark verified
+            $stmtUpd = $conn->prepare("UPDATE users SET is_verified = 1 WHERE email = ?");
+            $stmtUpd->bind_param("s", $email);
+            $stmtUpd->execute();
+
+            // Cleanup OTPs
+            $conn->query("DELETE FROM verification_codes WHERE email = '$email'");
+            
+            $_SESSION['register_step'] = 3; // Advance progress
+            header("Location: register.php?step=3");
+            exit();
+        } else {
+            $error = "Invalid or expired OTP.";
+        }
     }
 }
 
 // --- Resend OTP Handler ---
 if (isset($_POST['resend_otp'])) {
     if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
-        die("Invalid CSRF Token");
-    }
-    $email = $_SESSION['verify_email'] ?? '';
-    if ($email) {
-        $otp = rand(100000, 999999);
-        $expires_at = date('Y-m-d H:i:s', time() + 600);
-        
-        $stmtOtp = $conn->prepare("INSERT INTO verification_codes (email, code, expires_at) VALUES (?, ?, ?)");
-        $stmtOtp->bind_param("sss", $email, $otp, $expires_at);
-        $stmtOtp->execute();
-        
-        if (sendOTP($email, $otp)) {
-            $success = "New code sent to your email.";
-        } else {
-            $error = "Failed to send new code.";
+        $error = "Session expired or invalid token. Please try again.";
+    } else {
+        $email = $_SESSION['verify_email'] ?? '';
+        if ($email) {
+            $otp = rand(100000, 999999);
+            $expires_at = date('Y-m-d H:i:s', time() + 600);
+            
+            $stmtOtp = $conn->prepare("INSERT INTO verification_codes (email, code, expires_at) VALUES (?, ?, ?)");
+            $stmtOtp->bind_param("sss", $email, $otp, $expires_at);
+            $stmtOtp->execute();
+            
+            if (sendOTP($email, $otp)) {
+                $success = "New code sent to your email.";
+            } else {
+                $error = "Failed to send new code.";
+            }
         }
     }
 }
@@ -197,8 +198,8 @@ if (isset($_POST['resend_otp'])) {
 // --- STEP 3: Complete Profile ---
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['complete_profile'])) {
     if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
-        die("Invalid CSRF Token");
-    }
+        $error = "Session expired or invalid token. Please try again.";
+    } else {
     $email = $_SESSION['verify_email'] ?? '';
     if (empty($email)) {
         header("Location: login.php");
@@ -313,6 +314,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['complete_profile'])) {
         $error = "Failed to update profile: " . $conn->error;
     }
     }
+}
 }
 ?>
 

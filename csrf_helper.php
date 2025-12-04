@@ -1,7 +1,5 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+require_once 'includes/session_config.php';
 
 /**
  * Generates a CSRF token if one doesn't exist.
