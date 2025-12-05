@@ -135,6 +135,49 @@ $pending_teachers = $stmtPending->get_result();
             </div>
         </div>
 
+        <!-- Analytics Section -->
+        <h3 class="vds-h3 mb-4">Analytics Overview</h3>
+        <div class="row g-4 mb-5">
+            <!-- Card 1: Students per Program -->
+            <div class="col-md-4">
+                <div class="vds-card p-4 h-100">
+                    <h5 class="vds-h5 mb-3">Enrolled Students</h5>
+                    <div class="d-flex align-items-end justify-content-between mb-3">
+                        <h2 class="vds-h2 mb-0" id="totalStudents">-</h2>
+                        <i class="bi bi-people text-muted fs-3"></i>
+                    </div>
+                    <canvas id="studentsChart" height="150"></canvas>
+                </div>
+            </div>
+
+            <!-- Card 2: Pass/Fail Distribution & Completion -->
+            <div class="col-md-4">
+                <div class="vds-card p-4 h-100">
+                    <h5 class="vds-h5 mb-3">Grade Performance</h5>
+                    <div class="mb-3">
+                        <small class="text-muted d-block text-uppercase fw-bold" style="font-size: 0.7rem;">Completion Rate</small>
+                        <div class="d-flex align-items-center gap-2">
+                             <h2 class="vds-h2 mb-0" id="gradeCompletion">-</h2>
+                             <span class="text-muted">%</span>
+                        </div>
+                    </div>
+                    <canvas id="passFailChart" height="150"></canvas>
+                </div>
+            </div>
+
+            <!-- Card 3: Avg Grade per Program -->
+            <div class="col-md-4">
+                <div class="vds-card p-4 h-100">
+                    <h5 class="vds-h5 mb-3">Academic Average</h5>
+                    <div class="d-flex align-items-end justify-content-between mb-3">
+                         <h2 class="vds-h2 mb-0" id="avgGradeDisplay">-</h2>
+                         <i class="bi bi-graph-up text-muted fs-3"></i>
+                    </div>
+                    <canvas id="performanceChart" height="150"></canvas>
+                </div>
+            </div>
+        </div>
+
         <!-- Recent Notices -->
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h3 class="vds-h3 mb-0">System Updates</h3>
@@ -234,7 +277,85 @@ $pending_teachers = $stmtPending->get_result();
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const res = await fetch('api.php?action=get_analytics');
+                const data = await res.json();
+                
+                if (data.success) {
+                    const stats = data.data;
+                    document.getElementById('totalStudents').textContent = stats.total_students;
+                    document.getElementById('gradeCompletion').textContent = stats.grade_completion;
+                    
+                    // Students Pie Chart
+                    const studentCtx = document.getElementById('studentsChart').getContext('2d');
+                    new Chart(studentCtx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: stats.students_by_program.map(i => i.code),
+                            datasets: [{
+                                data: stats.students_by_program.map(i => i.count),
+                                backgroundColor: ['#0D3B2E', '#6B9080', '#A4C3B2', '#CCE3DE', '#F6FFF8']
+                            }]
+                        },
+                        options: { responsive: true, plugins: { legend: { display: false } } }
+                    });
+
+                    // Pass/Fail Bar Chart
+                    const pfCtx = document.getElementById('passFailChart').getContext('2d');
+                    new Chart(pfCtx, {
+                        type: 'bar',
+                        data: {
+                            labels: stats.pass_fail_stats.map(i => i.status),
+                            datasets: [{
+                                label: 'Students',
+                                data: stats.pass_fail_stats.map(i => i.count),
+                                backgroundColor: ['#198754', '#dc3545'],
+                                borderRadius: 4
+                            }]
+                        },
+                        options: { 
+                            responsive: true, 
+                            scales: { y: { beginAtZero: true, grid: { display: false } }, x: { grid: { display: false } } },
+                            plugins: { legend: { display: false } }
+                        }
+                    });
+
+                    // Performance Line Chart
+                    const perfCtx = document.getElementById('performanceChart').getContext('2d');
+                    // Calculate Overall Avg for display
+                    const overallAvg = stats.avg_grade_by_program.reduce((acc, curr) => acc + parseFloat(curr.avg_grade), 0) / (stats.avg_grade_by_program.length || 1);
+                    document.getElementById('avgGradeDisplay').textContent = overallAvg.toFixed(2);
+
+                    new Chart(perfCtx, {
+                        type: 'line',
+                        data: {
+                            labels: stats.avg_grade_by_program.map(i => i.code),
+                            datasets: [{
+                                label: 'Avg Grade',
+                                data: stats.avg_grade_by_program.map(i => i.avg_grade),
+                                borderColor: '#b45309',
+                                tension: 0.4,
+                                fill: true,
+                                backgroundColor: 'rgba(180, 83, 9, 0.1)'
+                            }]
+                        },
+                        options: { 
+                            responsive: true, 
+                            scales: { y: { reverse: true, min: 1, max: 5 } }, // Lower is better in grades
+                            plugins: { legend: { display: false } }
+                        }
+                    });
+                }
+            } catch (err) {
+                console.error("Failed to load analytics", err);
+            }
+        });
+    </script>
 
 </body>
 </html>

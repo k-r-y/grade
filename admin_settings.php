@@ -34,23 +34,20 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
             <div class="col-md-6">
                 <div class="vds-card p-4">
                     <h3 class="vds-h4 mb-4">Academic Year & Semester</h3>
-                    <form>
+                    <form id="settingsForm">
                         <div class="vds-form-group">
                             <label class="vds-label">Current Academic Year</label>
-                            <select class="vds-select">
-                                <option>2024-2025</option>
-                                <option>2025-2026</option>
-                            </select>
+                            <input type="text" class="vds-input" name="current_academic_year" id="current_academic_year" placeholder="e.g. 2024-2025" required>
                         </div>
                         <div class="vds-form-group">
                             <label class="vds-label">Current Semester</label>
-                            <select class="vds-select">
-                                <option>1st Semester</option>
-                                <option>2nd Semester</option>
-                                <option>Summer</option>
+                            <select class="vds-select" name="current_semester" id="current_semester">
+                                <option value="1st Sem">1st Sem</option>
+                                <option value="2nd Sem">2nd Sem</option>
+                                <option value="Summer">Summer</option>
                             </select>
                         </div>
-                        <button type="button" class="vds-btn vds-btn-primary">Save Changes</button>
+                        <button type="submit" class="vds-btn vds-btn-primary">Save Changes</button>
                     </form>
                 </div>
             </div>
@@ -79,5 +76,64 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
 
     <?php include 'footer_dashboard.php'; ?>
 
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const form = document.getElementById('settingsForm');
+            const yearInput = document.getElementById('current_academic_year');
+            const semInput = document.getElementById('current_semester');
+
+            // Load Settings
+            try {
+                const res = await fetch('api.php?action=get_settings');
+                const data = await res.json();
+                if (data.success && data.settings) {
+                    if (data.settings.current_academic_year) yearInput.value = data.settings.current_academic_year;
+                    if (data.settings.current_semester) semInput.value = data.settings.current_semester;
+                }
+            } catch (err) {
+                console.error('Failed to load settings', err);
+            }
+
+            // Save Settings
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const btn = form.querySelector('button');
+                btn.disabled = true;
+                btn.innerHTML = 'Saving...';
+
+                try {
+                    const res = await fetch('api.php?action=update_settings', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            csrf_token: '<?php echo $_SESSION['csrf_token']; ?>',
+                            settings: {
+                                current_academic_year: yearInput.value,
+                                current_semester: semInput.value
+                            }
+                        })
+                    });
+                    const data = await res.json();
+                    
+                    if (data.success) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Success',
+                            text: data.message,
+                            confirmButtonColor: '#0D3B2E'
+                        });
+                    } else {
+                        Swal.fire({icon: 'error', title: 'Error', text: data.message});
+                    }
+                } catch (err) {
+                    Swal.fire({icon: 'error', title: 'Error', text: 'System Error'});
+                } finally {
+                    btn.disabled = false;
+                    btn.innerHTML = 'Save Changes';
+                }
+            });
+        });
+    </script>
 </body>
 </html>

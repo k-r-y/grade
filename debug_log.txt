@@ -794,3 +794,134 @@ Class Program: BSIS
 Student ID: 145
 Student Program: BSIS
 2025-12-04 16:14:01 - Action: get_classes
+2025-12-05 18:58:01 - Action: get_institutes
+2025-12-05 18:58:09 - Action: get_programs
+2025-12-05 18:58:14 - Action: get_institutes
+2025-12-05 18:58:22 - Action: get_programs
+2025-12-05 18:59:08 - Action: get_analytics
+2025-12-05 18:59:15 - Action: get_analytics
+2025-12-05 18:59:32 - Action: get_settings
+2025-12-05 18:59:33 - Action: get_analytics
+2025-12-05 18:59:35 - Action: get_analytics
+2025-12-05 18:59:36 - Action: get_analytics
+2025-12-05 19:03:32 - Action: get_analytics
+2025-12-05 19:03:38 - Action: get_analytics
+2025-12-05 19:03:42 - Action: get_analytics
+2025-12-05 19:03:45 - Action: get_analytics
+2025-12-05 19:04:33 - Action: get_profile
+2025-12-05 19:04:33 - Action: get_settings
+2025-12-05 19:04:33 - Action: get_classes
+2025-12-05 19:04:33 - Action: get_programs
+2025-12-05 19:04:36 - Action: get_classes
+2025-12-05 19:04:37 - Action: get_classes
+2025-12-05 19:04:37 - Action: get_classes
+2025-12-05 19:04:38 - Action: get_classes
+2025-12-05 19:04:54 - Action: create_class
+2025-12-05 19:04:54 - Action: get_classes
+2025-12-05 19:05:12 - Action: get_classes
+2025-12-05 19:05:12 - Action: get_profile
+2025-12-05 19:05:12 - Action: get_settings
+2025-12-05 19:05:12 - Action: get_programs
+2025-12-05 19:05:24 - Action: get_profile
+2025-12-05 19:05:24 - Action: get_settings
+2025-12-05 19:05:24 - Action: get_classes
+2025-12-05 19:05:24 - Action: get_programs
+2025-12-05 19:05:29 - Action: get_classes
+2025-12-05 19:05:34 - Action: get_settings
+2025-12-05 19:05:34 - Action: get_profile
+2025-12-05 19:05:34 - Action: get_classes
+2025-12-05 19:05:34 - Action: get_programs
+2025-12-05 19:11:21 - Action: get_settings
+2025-12-05 19:11:21 - Action: get_classes
+2025-12-05 19:11:21 - Action: get_profile
+2025-12-05 19:11:21 - Action: get_programs
+2025-12-05 19:28:03 - Action: get_class_students
+2025-12-05 19:28:14 - Action: get_classes
+2025-12-05 19:28:14 - Action: get_profile
+2025-12-05 19:28:14 - Action: get_settings
+2025-12-05 19:28:14 - Action: get_programs
+2025-12-05 19:28:17 - Action: get_class_students
+2025-12-05 19:28:32 - Action: get_settings
+2025-12-05 19:28:32 - Action: get_classes
+2025-12-05 19:28:32 - Action: get_profile
+2025-12-05 19:28:32 - Action: get_programs
+2025-12-05 19:28:36 - Action: get_class_students
+2025-12-05 19:28:57 - Action: get_profile
+2025-12-05 19:28:57 - Action: get_settings
+2025-12-05 19:28:57 - Action: get_classes
+2025-12-05 19:28:57 - Action: get_programs
+2025-12-05 19:29:02 - Action: get_classes
+2025-12-05 19:29:23 - Action: get_profile
+2025-12-05 19:29:23 - Action: get_settings
+2025-12-05 19:29:23 - Action: get_classes
+2025-12-05 19:29:23 - Action: get_programs
+2025-12-05 19:29:24 - Action: get_class_students
+2025-12-05 19:33:51 - Action: get_profile
+2025-12-05 19:33:51 - Action: get_classes
+2025-12-05 19:33:51 - Action: get_settings
+2025-12-05 19:33:51 - Action: get_programs
+2025-12-05 19:33:53 - Action: get_class_students
+2025-12-05 19:33:59 - Action: get_classes
+2025-12-05 19:33:59 - Action: get_settings
+2025-12-05 19:33:59 - Action: get_profile
+2025-12-05 19:33:59 - Action: get_programs
+2025-12-05 19:34:37 - Action: get_profile
+2025-12-05 19:34:37 - Action: get_classes
+2025-12-05 19:34:37 - Action: get_settings
+2025-12-05 19:34:37 - Action: get_programs
+2025-12-05 19:34:38 - Action: get_class_students
+2025-12-05 19:35:05 - Action: get_profile
+2025-12-05 19:35:05 - Action: get_classes
+2025-12-05 19:35:05 - Action: get_settings
+2025-12-05 19:35:05 - Action: get_programs
+2025-12-05 19:37:54 - Action: get_profile
+2025-12-05 19:37:54 - Action: get_settings
+2025-12-05 19:37:54 - Action: get_classes
+2025-12-05 19:37:54 - Action: get_programs
+2025-12-05 19:37:56 - Action: get_class_students
+2025-12-05 19:38:01 - Action: get_class_students
+2025-12-05 20:52:43 - Action: get_profile
+2025-12-05 20:52:43 - Action: get_settings
+2025-12-05 20:52:43 - Action: get_classes
+2025-12-05 20:52:43 - Action: get_programs
+2025-12-05 20:52:45 - Action: get_class_students
+2025-12-05 20:52:49 - Action: get_class_students
+2025-12-05 20:53:04 - Action: validate_students
+2025-12-05 20:53:08 - Action: bulk_upload_grades
+2025-12-05 20:53:13 - Action: get_profile
+2025-12-05 20:53:13 - Action: get_classes
+2025-12-05 20:53:13 - Action: get_programs
+2025-12-05 20:53:13 - Action: get_settings
+2025-12-05 20:53:14 - Action: get_class_students
+2025-12-05 20:54:17 - Action: get_institutes
+2025-12-05 20:54:27 - Action: get_programs
+2025-12-05 20:54:43 - Action: get_classes
+2025-12-05 20:54:58 - Action: join_class
+Join Class Debug:
+Class ID: 8
+Class Program: BSIS
+Student ID: 149
+Student Program: BSIS
+2025-12-05 20:54:58 - Action: get_classes
+2025-12-05 20:56:09 - Action: validate_students
+2025-12-05 20:57:03 - Action: validate_students
+2025-12-05 20:57:06 - Action: bulk_upload_grades
+2025-12-05 20:57:57 - Action: get_institutes
+2025-12-05 20:58:13 - Action: get_programs
+2025-12-05 20:58:27 - Action: get_classes
+2025-12-05 20:58:34 - Action: join_class
+2025-12-05 20:58:55 - Action: join_class
+Join Class Debug:
+Class ID: 8
+Class Program: BSIS
+Student ID: 193
+Student Program: BSCS
+2025-12-05 20:59:06 - Action: get_settings
+2025-12-05 20:59:06 - Action: get_profile
+2025-12-05 20:59:06 - Action: get_classes
+2025-12-05 20:59:06 - Action: get_programs
+2025-12-05 20:59:08 - Action: get_class_students
+2025-12-05 21:00:18 - Action: manual_enroll
+2025-12-05 21:00:19 - Action: get_class_students
+2025-12-05 21:01:03 - Action: get_classes
+2025-12-05 21:01:13 - Action: get_classes

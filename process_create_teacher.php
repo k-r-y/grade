@@ -1,13 +1,11 @@
 <?php
 session_start();
 require 'db_connect.php';
-require 'email_helper.php';
 
-// Function to send OTP
-function sendOTP($email, $otp) {
-    $subject = 'Your OTP Code for Teacher Account';
-    $body = "Your OTP code is <b>$otp</b>. It will expire in 10 minutes.";
-    return sendEmail($email, $subject, $body);
+// Security Check: Only Admin can access
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
+    header("Location: login.php");
+    exit();
 }
 
 // Handle teacher registration
@@ -16,53 +14,46 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $middle_name = trim($_POST['middle_name']);
     $last_name   = trim($_POST['last_name']);
     $email       = trim($_POST['email']);
+    $school_id   = trim($_POST['school_id']);
     $password    = $_POST['password'];
     $confirm     = $_POST['confirm_password'];
     $user_type   = 'teacher';
 
     if ($password !== $confirm) {
-        echo "<script>alert('Passwords do not match'); window.history.back();</script>";
+        header("Location: admin_faculty.php?error=" . urlencode("Passwords do not match"));
         exit();
     }
 
-    // Check if email already exists
-    $check = $conn->prepare("SELECT * FROM users WHERE email = ?");
-    $check->bind_param("s", $email);
+    // Check if email or school_id already exists
+    $check = $conn->prepare("SELECT id FROM users WHERE email = ? OR school_id = ?");
+    $check->bind_param("ss", $email, $school_id);
     $check->execute();
     $result = $check->get_result();
 
     if ($result->num_rows > 0) {
-        echo "<script>alert('Email already registered!'); window.history.back();</script>";
+        header("Location: admin_faculty.php?error=" . urlencode("Email or Employee ID already registered"));
         exit();
     }
 
-    $otp = rand(100000, 999999);
+    // Get Admin's Institute to assign to Teacher
+    $admin_id = $_SESSION['user_id'];
+    $stmtInst = $conn->prepare("SELECT institute_id FROM users WHERE id = ?");
+    $stmtInst->bind_param("i", $admin_id);
+    $stmtInst->execute();
+    $institute_id = $stmtInst->get_result()->fetch_assoc()['institute_id'];
 
-    // Store registration data in session
-    $_SESSION['teacher_reg'] = [
-        'first_name' => $first_name,
-        'middle_name'=> $middle_name,
-        'last_name'  => $last_name,
-        'email'      => $email,
-        'password'   => password_hash($password, PASSWORD_DEFAULT),
-        'otp'        => $otp,
-        'user_type'  => $user_type,
-        'otp_time'   => time()
-    ];
+    $full_name = trim("$first_name $middle_name $last_name");
+    $hashed_pwd = password_hash($password, PASSWORD_DEFAULT);
+    
+    // Insert into DB as Active and Verified
+    $stmt = $conn->prepare("INSERT INTO users (school_id, full_name, email, password_hash, role, institute_id, is_verified, status) VALUES (?, ?, ?, ?, ?, ?, 1, 'active')");
+    $stmt->bind_param("sssssi", $school_id, $full_name, $email, $hashed_pwd, $user_type, $institute_id);
 
-    // Insert OTP into DB
-    $created_at = date('Y-m-d H:i:s');
-    $expires_at = date('Y-m-d H:i:s', time() + 600); // 10 minutes
-    $stmt_otp = $conn->prepare("INSERT INTO otps (email, otp, created_at, expires_at, used) VALUES (?, ?, ?, ?, 0)");
-    $stmt_otp->bind_param("siss", $email, $otp, $created_at, $expires_at);
-    $stmt_otp->execute();
-    $stmt_otp->close();
-
-    if (sendOTP($email, $otp)) {
-        echo "<script>alert('OTP sent to teacher email'); window.location.href='verify_teacher_otp.php';</script>";
+    if ($stmt->execute()) {
+        header("Location: admin_faculty.php?success=" . urlencode("Teacher account created successfully"));
         exit();
     } else {
-        echo "<script>alert('Failed to send OTP. Check email settings.'); window.history.back();</script>";
+        header("Location: admin_faculty.php?error=" . urlencode("Database error: " . $conn->error));
         exit();
     }
 }

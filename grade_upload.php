@@ -71,128 +71,170 @@ while ($row = $result->fetch_assoc()) {
     <div class="vds-container py-5">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <div>
-                <a href="teacher_dashboard.php" class="vds-text-muted text-decoration-none mb-2 d-inline-block"><i class="bi bi-arrow-left me-1"></i> Back to Dashboard</a>
+                <?php if ($class_id_param > 0): ?>
+                    <a href="class_details.php?id=<?php echo $class_id_param; ?>" id="backToClassBtn" class="vds-text-muted text-decoration-none mb-2 d-inline-block"><i class="bi bi-arrow-left me-1"></i> Back to Class</a>
+                <?php else: ?>
+                    <a href="my_classes.php" id="backToClassBtn" class="vds-text-muted text-decoration-none mb-2 d-inline-block"><i class="bi bi-arrow-left me-1"></i> Back to Classes</a>
+                <?php endif; ?>
                 <h1 class="vds-h2">Upload Grades</h1>
                 <p class="vds-text-muted">Import grades via Excel file for fast data encoding.</p>
             </div>
-        </div>
-
-        <!-- Step 1: Select Class -->
-        <div class="vds-card p-4 mb-4">
-            <h2 class="vds-h3 mb-3"><i class="bi bi-info-circle me-2"></i>Step 1: Select Class</h2>
-            
-            <?php if (empty($classes)): ?>
-                <div class="alert alert-warning mb-0">
-                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                    <strong>No Classes Found.</strong> You need to create a class before you can upload grades. 
-                    <a href="teacher_dashboard.php" class="alert-link">Go to Dashboard</a>
-                </div>
-            <?php else: ?>
-                <div class="row g-3">
-                    <div class="col-md-12">
-                        <label class="vds-label">Select Class to Upload Grades For <span class="text-danger">*</span></label>
-                        <select id="classSelect" class="vds-input">
-                            <option value="">-- Select a Class --</option>
-                            <?php foreach ($classes as $class): ?>
-                                <option value="<?php echo $class['id']; ?>" 
-                                    data-section="<?php echo htmlspecialchars($class['section']); ?>"
-                                    data-subject-code="<?php echo htmlspecialchars($class['subject_code']); ?>"
-                                    data-subject-name="<?php echo htmlspecialchars($class['subject_description']); ?>"
-                                    data-semester="<?php echo htmlspecialchars($class['semester']); ?>"
-                                    data-units="<?php echo htmlspecialchars($class['units'] ?? 3); ?>"
-                                    <?php echo ($class_id_param == $class['id']) ? 'selected' : ''; ?>>
-                                    <?php echo htmlspecialchars($class['subject_description'] . ' (' . $class['subject_code'] . ') - ' . $class['section']); ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                        <small class="text-muted">Only classes you have created are shown here.</small>
-                    </div>
-                    <div class="col-md-12 mt-3">
-                        <label class="vds-label">Grading Period <span class="text-danger">*</span></label>
-                        <select id="gradingPeriod" class="vds-input">
-                            <option value="midterm">Midterm Grade</option>
-                            <option value="final">Final Grade</option>
-                            <option value="grade" selected>Semestral Grade (Final Rating)</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <!-- Hidden Fields for Compatibility -->
-                <input type="hidden" id="section">
-                <input type="hidden" id="subjectCode">
-                <input type="hidden" id="subjectName">
-                <input type="hidden" id="semester">
-            <?php endif; ?>
-        </div>
-
-        <!-- Step 2: Upload Excel File -->
-        <div class="vds-card p-5 mb-4" id="uploadStep" style="opacity: 0.5; pointer-events: none;">
-            <div class="text-center mb-4">
-                <h2 class="vds-h3"><i class="bi bi-cloud-arrow-up me-2"></i>Step 2: Upload Excel File</h2>
-                <p class="vds-text-muted">Upload an Excel file (.xlsx) with columns: <strong>Student ID</strong>, <strong>Grade</strong>, <strong>Remarks (optional)</strong></p>
-                <p class="small text-info"><i class="bi bi-info-circle me-1"></i>Uploading for: <strong id="periodLabel">Semestral Grade</strong></p>
-                <button id="downloadTemplate" class="vds-btn vds-btn-secondary btn-sm mt-2">
+            <div>
+                 <button id="downloadTemplateHeader" class="vds-btn vds-btn-outline" style="border: 1px solid var(--vds-forest) !important;">
                     <i class="bi bi-download me-1"></i>Download Template
                 </button>
             </div>
-            
-            <div class="vds-file-drop" id="dropZone">
-                <i class="bi bi-cloud-arrow-up" style="font-size: 3rem; color: var(--vds-forest); margin-bottom: 1rem;"></i>
-                <h4 class="vds-h4">Drag & Drop Excel File Here</h4>
-                <p class="vds-text-muted">or click to browse</p>
-                <input type="file" id="fileInput" hidden accept=".xlsx, .xls">
-            </div>
         </div>
 
-        <!-- Step 3: Preview & Validate -->
-        <div id="previewContainer" style="display: none;" class="vds-card p-4 mb-4">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <div>
-                    <h3 class="vds-h3 mb-1"><i class="bi bi-table me-2"></i>Step 3: Preview & Validate</h3>
-                    <p class="vds-text-muted mb-0" id="previewSummary">Review your data before uploading</p>
+        <div class="row g-4">
+            <!-- Left Column: Upload Workflow -->
+            <div class="col-lg-7">
+                
+                <!-- Step 1: Select Class -->
+                <div class="vds-card p-4 mb-4">
+                    <h2 class="vds-h5 mb-3 text-uppercase fw-bold text-success"><i class="bi bi-1-circle me-2"></i>Select Class</h2>
+                    
+                    <?php if (empty($classes)): ?>
+                        <div class="alert alert-warning mb-0">
+                            <strong>No Classes Found.</strong> You need to create a class first.
+                        </div>
+                    <?php else: ?>
+                        <div class="vds-form-group mb-3">
+                            <label class="vds-label">Class <span class="text-danger">*</span></label>
+                            <select id="classSelect" class="vds-input">
+                                <option value="">-- Select a Class --</option>
+                                <?php foreach ($classes as $class): ?>
+                                    <option value="<?php echo $class['id']; ?>" 
+                                        data-section="<?php echo htmlspecialchars($class['section']); ?>"
+                                        data-subject-code="<?php echo htmlspecialchars($class['subject_code']); ?>"
+                                        data-subject-name="<?php echo htmlspecialchars($class['subject_description']); ?>"
+                                        data-semester="<?php echo htmlspecialchars($class['semester']); ?>"
+                                        data-units="<?php echo htmlspecialchars($class['units'] ?? 3); ?>"
+                                        <?php echo ($class_id_param == $class['id']) ? 'selected' : ''; ?>>
+                                        <?php echo htmlspecialchars($class['subject_description'] . ' (' . $class['subject_code'] . ') - ' . $class['section']); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="vds-form-group">
+                            <label class="vds-label">Grading Period <span class="text-danger">*</span></label>
+                            <select id="gradingPeriod" class="vds-input">
+                                <option value="midterm">Midterm Grade</option>
+                                <option value="final">Final Grade</option>
+                                <option value="grade" selected>Semestral Grade</option>
+                            </select>
+                        </div>
+
+                        <input type="hidden" id="section">
+                        <input type="hidden" id="subjectCode">
+                        <input type="hidden" id="subjectName">
+                        <input type="hidden" id="semester">
+                    <?php endif; ?>
                 </div>
-                <div class="d-flex align-items-center">
-                    <div class="form-check me-3">
-                        <input class="form-check-input" type="checkbox" id="createGhostsCheck" checked>
-                        <label class="form-check-label" for="createGhostsCheck">
-                            Create accounts for new students
-                        </label>
+
+                <!-- Step 2: Upload -->
+                <div class="vds-card p-4 mb-4" id="uploadStep" style="opacity: 0.5; pointer-events: none;">
+                    <h2 class="vds-h5 mb-3 text-uppercase fw-bold text-success"><i class="bi bi-2-circle me-2"></i>Upload File</h2>
+                    
+                    <div class="vds-file-drop p-5" id="dropZone">
+                        <i class="bi bi-cloud-arrow-up text-success mb-3" style="font-size: 2.5rem;"></i>
+                        <h5 class="fw-bold">Drag & Drop Excel File</h5>
+                        <p class="text-muted small mb-0">or click to browse</p>
+                        <input type="file" id="fileInput" hidden accept=".xlsx, .xls">
                     </div>
-                    <button id="validateBtn" class="vds-btn vds-btn-secondary me-2">
-                        <i class="bi bi-shield-check me-1"></i>Validate Students
-                    </button>
-                    <button id="publishBtn" class="vds-btn vds-btn-primary" disabled>
-                        <i class="bi bi-check-circle me-2"></i>Publish Grades
-                    </button>
                 </div>
+
+                <!-- Step 3: Preview -->
+                <div id="previewContainer" style="display: none;" class="vds-card p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h2 class="vds-h5 mb-0 text-uppercase fw-bold text-success"><i class="bi bi-3-circle me-2"></i>Preview & Validate</h2>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="createGhostsCheck" checked>
+                            <label class="form-check-label small" for="createGhostsCheck">Auto-enroll new students</label>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive mb-3" style="max-height: 400px;">
+                        <table class="table table-sm table-hover" id="previewTable">
+                            <thead class="table-light sticky-top">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Status</th>
+                                    <th>Student ID</th>
+                                    <th>Name</th>
+                                    <th>Grade</th>
+                                    <th>Remarks</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between align-items-center border-top pt-3">
+                        <div class="small text-muted" id="previewSummary">Loaded 0 records</div>
+                        <div>
+                            <button id="validateBtn" class="vds-btn vds-btn-secondary btn-sm me-2">validate</button>
+                            <button id="publishBtn" class="vds-btn vds-btn-primary btn-sm" disabled>Publish Grades</button>
+                        </div>
+                    </div>
+                </div>
+
             </div>
 
-            <div class="alert alert-info d-flex align-items-center mb-3">
-                <i class="bi bi-info-circle me-2"></i>
-                <div>
-                    <strong>Legend:</strong>
-                    <span class="ms-3"><i class="bi bi-check-circle-fill text-success"></i> Valid</span>
-                    <span class="ms-3"><i class="bi bi-exclamation-circle-fill text-danger"></i> Not Found</span>
-                    <span class="ms-3"><i class="bi bi-person-x-fill text-danger"></i> Not Enrolled</span>
-                </div>
-            </div>
+            <!-- Right Column: Instructions & Guide -->
+            <div class="col-lg-5">
+                <div class="vds-card p-4 sticky-top" style="top: 100px; z-index: 90;">
+                    <h3 class="vds-h4 mb-4">How to Upload Grades</h3>
+                    
+                    <div class="mb-4">
+                        <h5 class="fw-bold mb-2">1. Prepare your Excel File</h5>
+                        <p class="text-muted small mb-3">Your Excel file should match the format below. Using the template is highly recommended.</p>
+                        
+                        <div class="bg-light p-3 rounded mb-3 text-center">
+                            <img src="assets/excel_format_guide.png" onerror="this.src='https://placehold.co/400x150?text=Excel+Format+Example'" alt="Excel Format" class="img-fluid rounded shadow-sm border">
+                            <p class="text-muted small mt-2 fst-italic">Example of valid Excel structure</p>
+                        </div>
 
-            <div class="table-responsive">
-                <table class="vds-table" id="previewTable">
-                    <thead>
-                        <tr>
-                            <th style="width: 50px;">#</th>
-                            <th style="width: 60px;">Status</th>
-                            <th>Student ID</th>
-                            <th>Student Name</th>
-                            <th>Grade</th>
-                            <th>Remarks</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <!-- JS will populate this -->
-                    </tbody>
-                </table>
+                        <ul class="list-unstyled small text-muted">
+                            <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i><strong>Column A (Student ID):</strong> Must be in format <code>20XX-X-XXXXXX</code>.</li>
+                            <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i><strong>Column B (Raw Grade):</strong> Numeric value (0-100).</li>
+                            <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i><strong>Column C (Notes):</strong> Optional remarks.</li>
+                        </ul>
+                    </div>
+
+                    <div class="mb-4">
+                        <h5 class="fw-bold mb-2">Dos and Don'ts</h5>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <div class="p-3 bg-success bg-opacity-10 rounded h-100">
+                                    <h6 class="text-success fw-bold"><i class="bi bi-check-lg me-1"></i>Do</h6>
+                                    <ul class="ps-3 small mb-0 text-success" style="font-size: 0.85rem;">
+                                        <li>Use the provided template</li>
+                                        <li>Check Student IDs for typos</li>
+                                        <li>Verify raw grades before uploading</li>
+                                        <li>Use a new file for every period</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="p-3 bg-danger bg-opacity-10 rounded h-100">
+                                    <h6 class="text-danger fw-bold"><i class="bi bi-x-lg me-1"></i>Don't</h6>
+                                    <ul class="ps-3 small mb-0 text-danger" style="font-size: 0.85rem;">
+                                        <li>Merge cells in Excel</li>
+                                        <li>Add extra headers above row 1</li>
+                                        <li>Use special characters in IDs</li>
+                                        <li>Upload password protected files</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info small mb-0">
+                        <i class="bi bi-info-circle-fill me-2"></i>
+                        <strong>Note:</strong> Re-uploading a file for the same class and period will <strong>overwrite</strong> any existing grades for those students.
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -208,7 +250,7 @@ while ($row = $result->fetch_assoc()) {
         const previewTableBody = document.querySelector('#previewTable tbody');
         const publishBtn = document.getElementById('publishBtn');
         const validateBtn = document.getElementById('validateBtn');
-        const downloadTemplateBtn = document.getElementById('downloadTemplate');
+        const downloadTemplateBtn = document.getElementById('downloadTemplateHeader');
         const previewSummary = document.getElementById('previewSummary');
         
         // Hidden fields
@@ -216,8 +258,9 @@ while ($row = $result->fetch_assoc()) {
         const subjectCodeInput = document.getElementById('subjectCode');
         const subjectNameInput = document.getElementById('subjectName');
         const semesterInput = document.getElementById('semester');
+
         const gradingPeriodSelect = document.getElementById('gradingPeriod');
-        const periodLabel = document.getElementById('periodLabel');
+        // periodLabel removed as it's no longer in the UI
 
         let parsedData = [];
         let validationResults = {};
@@ -244,6 +287,8 @@ while ($row = $result->fetch_assoc()) {
             if (!classSelect) return;
             
             const selectedOption = classSelect.options[classSelect.selectedIndex];
+            const backBtn = document.getElementById('backToClassBtn');
+
             if (selectedOption.value) {
                 currentClassId = selectedOption.value;
                 sectionInput.value = selectedOption.dataset.section;
@@ -253,11 +298,23 @@ while ($row = $result->fetch_assoc()) {
                 
                 uploadStep.style.opacity = '1';
                 uploadStep.style.pointerEvents = 'auto';
+
+                // Update Back Button
+                if (backBtn) {
+                    backBtn.href = `class_details.php?id=${currentClassId}`;
+                    backBtn.innerHTML = '<i class="bi bi-arrow-left me-1"></i> Back to Class';
+                }
             } else {
                 currentClassId = 0;
                 uploadStep.style.opacity = '0.5';
                 uploadStep.style.pointerEvents = 'none';
                 previewContainer.style.display = 'none';
+                
+                // Reset Back Button (to Dashboard if no class selected)
+                if (backBtn) {
+                    backBtn.href = 'my_classes.php';
+                    backBtn.innerHTML = '<i class="bi bi-arrow-left me-1"></i> Back to Classes';
+                }
             }
         }
             
@@ -267,7 +324,7 @@ while ($row = $result->fetch_assoc()) {
         
         gradingPeriodSelect.addEventListener('change', () => {
             const text = gradingPeriodSelect.options[gradingPeriodSelect.selectedIndex].text;
-            periodLabel.textContent = text;
+            // periodLabel.textContent = text; // Removed
         });
         
         // Run on load to handle pre-selection
@@ -571,7 +628,7 @@ while ($row = $result->fetch_assoc()) {
                                 autoEnrollCount++;
                             } else {
                                 statusIcon.className = 'bi bi-exclamation-circle-fill validation-icon text-danger';
-                                nameCell.textContent = 'Not Found';
+                                nameCell.textContent = 'Not Enrolled';
                                 rowElem.className = 'row-invalid';
                                 errorCount++;
                             }

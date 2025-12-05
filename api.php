@@ -542,10 +542,13 @@ if ($action === 'join_class') {
 if ($action === 'get_classes') {
     $user_id = $_SESSION['user_id'];
     $role = $_SESSION['role'];
+    $include_archived = isset($_GET['archived']) && $_GET['archived'] === 'true';
+    $archived_sql = $include_archived ? "is_archived = 1" : "is_archived = 0";
+
     $data = [];
 
     if ($role === 'teacher') {
-        $stmt = $conn->prepare("SELECT * FROM classes WHERE teacher_id = ? ORDER BY created_at DESC");
+        $stmt = $conn->prepare("SELECT * FROM classes WHERE teacher_id = ? AND $archived_sql ORDER BY created_at DESC");
         $stmt->bind_param("i", $user_id);
         $stmt->execute();
         $res = $stmt->get_result();
@@ -562,7 +565,7 @@ if ($action === 'get_classes') {
             FROM enrollments e 
             JOIN classes c ON e.class_id = c.id 
             JOIN users u ON c.teacher_id = u.id 
-            WHERE e.student_id = ? 
+            WHERE e.student_id = ? AND c.$archived_sql
             ORDER BY e.joined_at DESC
         ");
         $stmt->bind_param("i", $user_id);
@@ -574,6 +577,45 @@ if ($action === 'get_classes') {
     }
 
     echo json_encode(['success' => true, 'classes' => $data]);
+    exit;
+}
+
+// Archive Class
+if ($action === 'archive_class') {
+    if (!isset($_SESSION['role']) || ($_SESSION['role'] !== 'teacher' && $_SESSION['role'] !== 'admin')) {
+        echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+        exit;
+    }
+
+    $input = json_decode(file_get_contents('php://input'), true);
+    $class_id = intval($input['class_id']);
+    $teacher_id = $_SESSION['user_id'];
+    $csrf_token = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? ($input['csrf_token'] ?? '');
+
+    if (!verify_csrf_token($csrf_token)) {
+        echo json_encode(['success' => false, 'message' => 'Invalid CSRF Token']);
+        exit;
+    }
+
+    // Verify ownership (if teacher)
+    if ($_SESSION['role'] === 'teacher') {
+        $stmtCheck = $conn->prepare("SELECT id FROM classes WHERE id = ? AND teacher_id = ?");
+        $stmtCheck->bind_param("ii", $class_id, $teacher_id);
+        $stmtCheck->execute();
+        if ($stmtCheck->get_result()->num_rows === 0) {
+            echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+            exit;
+        }
+    }
+
+    $stmt = $conn->prepare("UPDATE classes SET is_archived = 1 WHERE id = ?");
+    $stmt->bind_param("i", $class_id);
+
+    if ($stmt->execute()) {
+        echo json_encode(['success' => true, 'message' => 'Class archived successfully']);
+    } else {
+        echo json_encode(['success' => false, 'message' => 'Database error']);
+    }
     exit;
 }
 
@@ -596,13 +638,20 @@ if ($action === 'get_class_students') {
         JOIN users u ON e.student_id = u.id 
         LEFT JOIN grades g ON g.student_id = u.id AND g.class_id = ?
         WHERE e.class_id = ? 
-        ORDER BY u.full_name ASC
+        ORDER BY SUBSTRING_INDEX(u.full_name, ' ', -1) ASC, u.full_name ASC
     ");
     $stmt->bind_param("ii", $class_id, $class_id);
     $stmt->execute();
     $res = $stmt->get_result();
     $students = [];
     while ($row = $res->fetch_assoc()) {
+        // Format Name: "First Last" -> "Last, First"
+        $nameParts = explode(' ', trim($row['full_name']));
+        if (count($nameParts) > 1) {
+            $lastName = array_pop($nameParts);
+            $firstName = implode(' ', $nameParts);
+            $row['full_name'] = "$lastName, $firstName";
+        }
         $students[] = $row;
     }
     
@@ -681,6 +730,256 @@ if ($action === 'update_single_grade') {
     } else {
         echo json_encode(['success' => false, 'message' => 'Database error: ' . $stmt->error]);
     }
+    exit;
+}
+// Get Settings
+if ($action === 'get_settings') {
+    if (!isset($_SESSION['role'])) { // Public or at least logged in? Let's say logged in.
+         // Actually, maybe some settings are needed for class creation (teacher), so let's allow logged in users.
+         if (!isset($_SESSION['user_id'])) {
+             echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+             exit;
+         }
+    }
+    
+    $result = $conn->query("SELECT * FROM settings");
+    $settings = [];
+    while ($row = $result->fetch_assoc()) {
+        $settings[$row['setting_key']] = $row['setting_value'];
+    }
+    echo json_encode(['success' => true, 'settings' => $settings]);
+    exit;
+}
+
+// Update Settings
+if ($action === 'update_settings') {
+    if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
+        echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+        exit;
+    }
+
+    $input = json_decode(file_get_contents('php://input'), true);
+    $csrf_token = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? ($input['csrf_token'] ?? '');
+    
+    if (!verify_csrf_token($csrf_token)) {
+        echo json_encode(['success' => false, 'message' => 'Invalid CSRF Token']);
+        exit;
+    }
+    
+    $settings = $input['settings'] ?? [];
+    $stmt = $conn->prepare("UPDATE settings SET setting_value = ? WHERE setting_key = ?");
+    
+    foreach ($settings as $key => $value) {
+        $stmt->bind_param("ss", $value, $key);
+        $stmt->execute();
+    }
+    
+    echo json_encode(['success' => true, 'message' => 'Settings updated successfully']);
+    exit;
+}
+
+// Manual Enroll (Irregular Students)
+if ($action === 'manual_enroll') {
+    if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'teacher') {
+        echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+        exit;
+    }
+
+    $input = json_decode(file_get_contents('php://input'), true);
+    $class_id = intval($input['class_id']);
+    $student_school_id = trim($input['student_school_id']);
+    $teacher_id = $_SESSION['user_id'];
+    $csrf_token = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? ($input['csrf_token'] ?? '');
+
+    if (!verify_csrf_token($csrf_token)) {
+        echo json_encode(['success' => false, 'message' => 'Invalid CSRF Token']);
+        exit;
+    }
+
+    // Verify Class Ownership
+    $stmtCheck = $conn->prepare("SELECT id FROM classes WHERE id = ? AND teacher_id = ?");
+    $stmtCheck->bind_param("ii", $class_id, $teacher_id);
+    $stmtCheck->execute();
+    if ($stmtCheck->get_result()->num_rows === 0) {
+        echo json_encode(['success' => false, 'message' => 'Unauthorized or Class Not Found']);
+        exit;
+    }
+
+    // Find Student
+    $stmtUser = $conn->prepare("SELECT id, role, full_name FROM users WHERE school_id = ?");
+    $stmtUser->bind_param("s", $student_school_id);
+    $stmtUser->execute();
+    $student = $stmtUser->get_result()->fetch_assoc();
+
+    if (!$student) {
+        echo json_encode(['success' => false, 'message' => 'Student ID not found']);
+        exit;
+    }
+
+    if ($student['role'] !== 'student') {
+        echo json_encode(['success' => false, 'message' => 'User is not a student']);
+        exit;
+    }
+
+    $student_id = $student['id'];
+
+    // Check if already enrolled
+    $stmtEnrollCheck = $conn->prepare("SELECT id FROM enrollments WHERE class_id = ? AND student_id = ?");
+    $stmtEnrollCheck->bind_param("ii", $class_id, $student_id);
+    $stmtEnrollCheck->execute();
+    if ($stmtEnrollCheck->get_result()->num_rows > 0) {
+        echo json_encode(['success' => false, 'message' => 'Student is already enrolled']);
+        exit;
+    }
+
+    // Enroll
+    $stmtEnroll = $conn->prepare("INSERT INTO enrollments (class_id, student_id) VALUES (?, ?)");
+    $stmtEnroll->bind_param("ii", $class_id, $student_id);
+
+    if ($stmtEnroll->execute()) {
+        echo json_encode(['success' => true, 'message' => "Successfully enrolled {$student['full_name']}"]);
+    } else {
+        echo json_encode(['success' => false, 'message' => 'Database error: ' . $conn->error]);
+    }
+    exit;
+}
+// Admin Analytics (Institute Specific)
+if ($action === 'get_analytics') {
+    if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
+        echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+        exit;
+    }
+
+    $admin_id = $_SESSION['user_id'];
+    // Fetch Admin's Institute
+    $stmtAdm = $conn->prepare("SELECT institute_id FROM users WHERE id = ?");
+    $stmtAdm->bind_param("i", $admin_id);
+    $stmtAdm->execute();
+    $instId = $stmtAdm->get_result()->fetch_assoc()['institute_id'];
+
+    $data = [];
+
+    // Filter by Institute
+    // Students (by Program's Institute)
+    $stmtStud = $conn->prepare("
+        SELECT COUNT(u.id) 
+        FROM users u 
+        JOIN programs p ON u.program_id = p.id 
+        WHERE u.role='student' AND p.institute_id = ?
+    ");
+    $stmtStud->bind_param("i", $instId);
+    $stmtStud->execute();
+    $data['total_students'] = $stmtStud->get_result()->fetch_row()[0];
+
+    // Teachers (by Users' Institute)
+    $stmtTeach = $conn->prepare("SELECT COUNT(*) FROM users WHERE role='teacher' AND institute_id = ?");
+    $stmtTeach->bind_param("i", $instId);
+    $stmtTeach->execute();
+    $data['total_teachers'] = $stmtTeach->get_result()->fetch_row()[0];
+
+    // Classes (by Teacher's Institute)
+    $stmtClass = $conn->prepare("
+        SELECT COUNT(c.id) 
+        FROM classes c 
+        JOIN users u ON c.teacher_id = u.id 
+        WHERE u.institute_id = ?
+    ");
+    $stmtClass->bind_param("i", $instId);
+    $stmtClass->execute();
+    $data['total_classes'] = $stmtClass->get_result()->fetch_row()[0];
+
+    // Grade Completion %
+    // Total Enrollments in Institute's Classes
+    $stmtEnr = $conn->prepare("
+        SELECT COUNT(e.id) 
+        FROM enrollments e 
+        JOIN classes c ON e.class_id = c.id 
+        JOIN users u ON c.teacher_id = u.id 
+        WHERE u.institute_id = ?
+    ");
+    $stmtEnr->bind_param("i", $instId);
+    $stmtEnr->execute();
+    $totalEnrollments = $stmtEnr->get_result()->fetch_row()[0];
+
+    // Total Grades in Institute's Classes
+    $stmtGrd = $conn->prepare("
+        SELECT COUNT(g.id) 
+        FROM grades g 
+        JOIN classes c ON g.class_id = c.id 
+        JOIN users u ON c.teacher_id = u.id 
+        WHERE u.institute_id = ?
+    ");
+    $stmtGrd->bind_param("i", $instId);
+    $stmtGrd->execute();
+    $totalGrades = $stmtGrd->get_result()->fetch_row()[0];
+    
+    $data['grade_completion'] = ($totalEnrollments > 0) ? round(($totalGrades / $totalEnrollments) * 100, 1) : 0;
+
+
+    // Chart 1: Students per Program (Institute Only)
+    $stmtProg = $conn->prepare("
+        SELECT p.code, COUNT(u.id) as count 
+        FROM programs p 
+        LEFT JOIN users u ON p.id = u.program_id AND u.role='student' 
+        WHERE p.institute_id = ? 
+        GROUP BY p.id
+    ");
+    $stmtProg->bind_param("i", $instId);
+    $stmtProg->execute();
+    $progRes = $stmtProg->get_result();
+    $data['students_by_program'] = [];
+    while ($row = $progRes->fetch_assoc()) {
+        $data['students_by_program'][] = $row;
+    }
+    
+    // Chart 2: Pass/Fail Distribution (Institute's students)
+    // 3.00 and below is passed? No, usually 75+ or 3.0 (if 1.0 is high). 
+    // Wait, KLD system... usually 1.0 is high, 3.0 is pass, 5.0 is fail.
+    // Let's assume 3.0 or less (numerical) is PASS if 1.0 is best. Or maybe 75-100.
+    // Looking at previous chats, it seems typical PH college grading (1.0 - 5.0).
+    // Let's count Grades <= 3.0 as Passed, > 3.0 as Failed (assuming 5.0 is fail).
+    // Also include 'INC' or others if they exist, but schema uses decimal(5,2). So 5.00 is fail.
+    
+    $stmtPass = $conn->prepare("
+        SELECT 
+            CASE 
+                WHEN g.grade <= 3.0 THEN 'Passed' 
+                ELSE 'Failed' 
+            END as status,
+            COUNT(*) as count
+        FROM grades g
+        JOIN classes c ON g.class_id = c.id
+        JOIN users u ON c.teacher_id = u.id
+        WHERE u.institute_id = ? AND g.grade > 0
+        GROUP BY status
+    ");
+    $stmtPass->bind_param("i", $instId);
+    $stmtPass->execute();
+    $passRes = $stmtPass->get_result();
+    $data['pass_fail_stats'] = [];
+    while ($row = $passRes->fetch_assoc()) {
+        $data['pass_fail_stats'][] = $row;
+    }
+
+
+    // Chart 3: Avg Grade per Program
+    $stmtPerf = $conn->prepare("
+        SELECT p.code, AVG(g.grade) as avg_grade
+        FROM programs p
+        JOIN users u ON p.id = u.program_id
+        JOIN grades g ON u.id = g.student_id
+        WHERE p.institute_id = ? AND g.grade > 0 AND g.grade <= 5
+        GROUP BY p.id
+    ");
+    $stmtPerf->bind_param("i", $instId);
+    $stmtPerf->execute();
+    $perfRes = $stmtPerf->get_result();
+    $data['avg_grade_by_program'] = [];
+    while ($row = $perfRes->fetch_assoc()) {
+        $data['avg_grade_by_program'][] = $row;
+    }
+    
+    echo json_encode(['success' => true, 'data' => $data]);
     exit;
 }
 ?>

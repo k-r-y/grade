@@ -390,14 +390,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['complete_profile'])) {
 
                 <form method="POST">
                     <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
-                    <div class="vds-form-group">
-                        <label class="vds-label">Role</label>
-                        <select name="role" id="roleSelect" class="vds-select" required>
-                            <option value="student">Student</option>
-                            <option value="teacher">Teacher</option>
-                        </select>
-                    </div>
-
+                    <input type="hidden" name="role" value="student">
+                    
                     <div class="vds-form-group">
                         <label class="vds-label">ID Number</label>
                         <input type="text" name="school_id" class="vds-input" placeholder="KLD-2024-XXXX" required>
@@ -420,18 +414,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['complete_profile'])) {
                         </select>
                     </div>
                     
-                    <!-- Program is only for Students -->
                     <div class="vds-form-group" id="programGroup">
                         <label class="vds-label">Program</label>
-                        <select id="programSelect" name="program_id" class="vds-select">
+                        <select id="programSelect" name="program_id" class="vds-select" required>
                             <option value="">Select Program</option>
                         </select>
                     </div>
 
-                    <!-- Section is only for Students -->
                     <div class="vds-form-group" id="sectionGroup">
                         <label class="vds-label">Section</label>
-                        <input type="text" name="section" id="sectionInput" class="vds-input" placeholder="e.g. 209">
+                        <input type="text" name="section" id="sectionInput" class="vds-input" placeholder="e.g. 209" required>
                     </div>
 
                     <button type="submit" name="complete_profile" class="vds-btn vds-btn-primary w-100">Finish Registration</button>
@@ -447,26 +439,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['complete_profile'])) {
         if (document.getElementById('instituteSelect')) {
             const instituteSelect = document.getElementById('instituteSelect');
             const programSelect = document.getElementById('programSelect');
-            const roleSelect = document.getElementById('roleSelect');
             const programGroup = document.getElementById('programGroup');
             const sectionGroup = document.getElementById('sectionGroup');
             const sectionInput = document.getElementById('sectionInput');
 
-            // Toggle Program & Section field based on Role
-            roleSelect.addEventListener('change', function() {
-                if (this.value === 'teacher') {
-                    programGroup.style.display = 'none';
-                    programSelect.required = false;
-                    sectionGroup.style.display = 'none';
-                    sectionInput.required = false;
-                } else {
-                    programGroup.style.display = 'block';
-                    programSelect.required = true;
-                    sectionGroup.style.display = 'block';
-                    sectionInput.required = true;
-                }
-            });
-
+            // Toggle Program & Section field based on Role - REMOVED (Students only)
+            
             fetch('api.php?action=get_institutes')
                 .then(response => response.json())
                 .then(data => {
@@ -483,7 +461,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['complete_profile'])) {
                 programSelect.innerHTML = '<option value="">Select Program</option>';
                 
                 // Only fetch programs if role is student
-                if (roleSelect.value === 'student' && instId) {
+                if (instId) {
                     fetch(`api.php?action=get_programs&institute_id=${instId}`)
                         .then(response => response.json())
                         .then(data => {

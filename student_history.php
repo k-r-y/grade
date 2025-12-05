@@ -15,6 +15,7 @@ $school_id = $_SESSION['school_id'] ?? 'N/A';
 $stmt = $conn->prepare("
     SELECT g.*, u.full_name as teacher_name, c.units, c.subject_description, c.section as class_section
     FROM grades g
+    INNER JOIN enrollments e ON g.class_id = e.class_id AND g.student_id = e.student_id
     LEFT JOIN users u ON g.teacher_id = u.id
     LEFT JOIN classes c ON g.class_id = c.id
     WHERE g.student_id = ?
@@ -100,41 +101,52 @@ $overall_gwa = $total_units > 0 ? number_format($total_grade_points / $total_uni
             text-align: center;
         }
         @media print {
-            @page { size: A4; margin: 15mm; }
+            @page { size: A4; margin: 5mm; }
             body { 
                 background: white !important; 
-                font-family: 'Times New Roman', Times, serif; /* Formal font for print */
+                font-family: 'Times New Roman', Times, serif;
                 color: black !important;
+                font-size: 10pt; /* Reduced font size */
             }
-            .vds-container { max-width: 100% !important; width: 100% !important; padding: 0 !important; }
+            .vds-container { 
+                max-width: 100% !important; 
+                width: 100% !important; 
+                padding: 0 !important; 
+                margin: 0 !important;
+            }
             .vds-card { 
                 box-shadow: none !important; 
                 border: none !important; 
                 padding: 0 !important;
-                margin-bottom: 20px !important;
+                margin-bottom: 10px !important; /* Reduced margin */
             }
             .semester-header { 
                 background: none !important; 
                 color: black !important; 
-                border-bottom: 2px solid #000;
-                padding: 10px 0 !important;
+                border-bottom: 1px solid #000; /* Thinner border */
+                padding: 5px 0 !important; /* Reduced padding */
                 border-radius: 0 !important;
+                margin-bottom: 5px !important;
             }
-            .semester-header h3, .semester-header h2, .semester-header p, .semester-header span {
-                color: black !important;
-            }
+            .semester-header h3 { font-size: 12pt !important; margin-bottom: 0 !important; }
+            .semester-header p { font-size: 9pt !important; margin-bottom: 0 !important; }
+            .semester-header h2 { font-size: 14pt !important; }
+            
             .table-responsive { overflow: visible !important; }
-            .vds-table th { 
-                background-color: #f0f0f0 !important; 
-                color: black !important; 
+            .vds-table { width: 100% !important; }
+            .vds-table th, .vds-table td { 
+                padding: 4px !important; /* Compact padding */
+                font-size: 9pt !important;
                 border: 1px solid #000 !important;
             }
-            .vds-table td {
-                border: 1px solid #000 !important;
-            }
+            .vds-table th { background-color: #f0f0f0 !important; }
+            
+            /* Hide non-essential elements for print if needed to save space */
             .d-print-none { display: none !important; }
             
-            /* Hide URL and date headers/footers added by browser if possible */
+            /* Ensure no cutoff */
+            * { overflow: visible !important; }
+            
             a[href]:after { content: none !important; }
         }
     </style>
@@ -338,8 +350,12 @@ $overall_gwa = $total_units > 0 ? number_format($total_grade_points / $total_uni
             header.classList.remove('d-none');
             info.classList.remove('d-none');
             
+            // Temporarily hide non-print elements (like statistics cards)
+            const noPrintEls = element.querySelectorAll('.d-print-none');
+            noPrintEls.forEach(el => el.classList.add('d-none'));
+            
             const opt = {
-                margin: [10, 10, 10, 10],
+                margin: [5, 5, 5, 5],
                 filename: 'My_Grades_Full_<?php echo $school_id; ?>.pdf',
                 image: { type: 'jpeg', quality: 0.98 },
                 html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
@@ -348,9 +364,10 @@ $overall_gwa = $total_units > 0 ? number_format($total_grade_points / $total_uni
 
             // Generate PDF
             html2pdf().set(opt).from(element).save().then(() => {
-                // Hide header again
+                // Restore visibility
                 header.classList.add('d-none');
                 info.classList.add('d-none');
+                noPrintEls.forEach(el => el.classList.remove('d-none'));
             });
         });
 
@@ -385,7 +402,7 @@ $overall_gwa = $total_units > 0 ? number_format($total_grade_points / $total_uni
                 container.appendChild(semCard);
 
                 const opt = {
-                    margin: [10, 10, 10, 10],
+                    margin: [5, 5, 5, 5],
                     filename: `Grade_Report_${semName.replace(/[^a-z0-9]/gi, '_')}.pdf`,
                     image: { type: 'jpeg', quality: 0.98 },
                     html2canvas: { scale: 2, useCORS: true, scrollY: 0 },

@@ -65,9 +65,15 @@ require 'check_profile.php';
                 <h1 class="vds-h2">My Classes</h1>
                 <p class="vds-text-muted">Manage your sections and students.</p>
             </div>
-            <button class="vds-btn vds-btn-primary" data-bs-toggle="modal" data-bs-target="#createClassModal">
-                <i class="bi bi-plus-lg me-2"></i>Create Class
-            </button>
+            <div class="d-flex gap-3 align-items-center">
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="showArchived">
+                    <label class="form-check-label" for="showArchived">Archived</label>
+                </div>
+                <button class="vds-btn vds-btn-primary" data-bs-toggle="modal" data-bs-target="#createClassModal">
+                    <i class="bi bi-plus-lg me-2"></i>Create Class
+                </button>
+            </div>
         </div>
 
         <!-- Classes Grid -->
@@ -272,12 +278,62 @@ require 'check_profile.php';
             }
         }
         
+        async function loadSettings() {
+            try {
+                const res = await fetch('api.php?action=get_settings');
+                const data = await res.json();
+                if (data.success && data.settings) {
+                    const year = data.settings.current_academic_year; // e.g., 2024-2025
+                    const sem = data.settings.current_semester; // e.g., 1st Sem
+                    
+                    const fullTerm = `${sem} ${year}`;
+                    
+                    const updateSelect = (select) => {
+                        select.innerHTML = '';
+                        // Generate logical options based on Academic Year
+                        const options = [
+                            `1st Sem ${year}`,
+                            `2nd Sem ${year}`,
+                            `Summer ${year.split('-')[1] || year}`
+                        ];
+                        
+                        options.forEach(opt => {
+                            const el = document.createElement('option');
+                            el.value = opt;
+                            el.textContent = opt;
+                            if (opt === fullTerm) el.selected = true;
+                            if (opt.includes(sem) && opt.includes(year)) el.selected = true; // Fallback match
+                            select.appendChild(el);
+                        });
+                        
+                        // If exact match not found, add it
+                        if (!options.includes(fullTerm) && sem && year) {
+                             const el = document.createElement('option');
+                             el.value = fullTerm;
+                             el.textContent = fullTerm;
+                             el.selected = true;
+                             select.appendChild(el);
+                        }
+                    };
+                    
+                    updateSelect(document.querySelector('#createClassForm select[name="semester"]'));
+                    updateSelect(document.querySelector('#editClassForm select[name="semester"]'));
+                }
+            } catch (err) {
+                console.error('Failed to load settings');
+            }
+        }
+
+        loadSettings();
         loadPrograms();
 
         // Load Classes
+        const showArchivedToggle = document.getElementById('showArchived');
+        
         async function loadClasses() {
+            const isArchived = showArchivedToggle.checked;
             try {
-                const res = await fetch('api.php?action=get_classes');
+                const res = await fetch(`api.php?action=get_classes&archived=${isArchived}`);
                 const data = await res.json();
                 
                 if (data.success) {
@@ -459,6 +515,8 @@ require 'check_profile.php';
                 sel.addEventListener('change', () => updateScheduleInput(form));
             });
         });
+                
+        showArchivedToggle.addEventListener('change', loadClasses);
     </script>
 </body>
 </html>

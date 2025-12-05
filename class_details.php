@@ -44,7 +44,7 @@ while ($row = $progRes->fetch_assoc()) {
 
     <?php include 'navbar_dashboard.php'; ?>
 
-    <div class="vds-container py-5">
+    <div class="vds-container min-vh-100 py-5">
         
         <!-- Header -->
         <div class="mb-5">
@@ -54,17 +54,22 @@ while ($row = $progRes->fetch_assoc()) {
                     <h1 class="vds-h2 mb-1"><?php echo htmlspecialchars($class['subject_code']); ?> - <?php echo htmlspecialchars($class['section']); ?></h1>
                     <p class="vds-text-muted mb-0"><?php echo htmlspecialchars($class['subject_description']); ?></p>
                     <span class="vds-pill vds-pill-pass mt-2">
-                        Code: <span class="font-monospace fw-bold ms-1"><?php echo htmlspecialchars($class['class_code']); ?></span>
+                        Code: <span class="font-monospace fw-bold ms-1 fs-3"><?php echo htmlspecialchars($class['class_code']); ?></span>
                     </span>
                 </div>
                 <div>
-                    <a href="grade_upload.php?class_id=<?php echo $class_id; ?>" class="vds-btn vds-btn-primary">
+                    <button class="vds-btn vds-btn-outline ms-2" data-bs-toggle="modal" data-bs-target="#addStudentModal">
+                        <i class="bi bi-person-plus me-2"></i>Add Student
+                    </button>
+                    <a href="grade_upload.php?class_id=<?php echo $class_id; ?>" class="vds-btn vds-btn-primary ms-2">
                         <i class="bi bi-upload me-2"></i>Upload Grades
                     </a>
                     <button class="vds-btn vds-btn-secondary ms-2" data-bs-toggle="modal" data-bs-target="#editClassModal">
                         <i class="bi bi-pencil me-2"></i>Edit Class
                     </button>
-
+                    <button class="vds-btn vds-btn-danger ms-2" id="archiveClassBtn">
+                        <i class="bi bi-archive me-2"></i>Archive
+                    </button>
                 </div>
             </div>
         </div>
@@ -201,221 +206,68 @@ while ($row = $progRes->fetch_assoc()) {
         </div>
     </div>
 
-    <?php include 'footer_dashboard.php'; ?>
-    <script src="js/bootstrap.bundle.min.js"></script>
-
-    <script>
-        const classId = <?php echo $class_id; ?>;
-        const tbody = document.querySelector('#studentsTable tbody');
-        const editClassForm = document.getElementById('editClassForm');
-        const editClassModal = new bootstrap.Modal(document.getElementById('editClassModal'));
-
-        // Edit Class
-        editClassForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const formData = new FormData(e.target);
-            const payload = Object.fromEntries(formData.entries());
-            const btn = e.target.querySelector('button[type="submit"]');
-            
-            btn.disabled = true;
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Saving...';
-
-            try {
-                const res = await fetch('api.php?action=edit_class', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                const data = await res.json();
-
-                if (data.success) {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Success',
-                        text: data.message,
-                        confirmButtonColor: '#0D3B2E'
-                    }).then(() => {
-                        location.reload();
-                    });
-                } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: data.message,
-                        confirmButtonColor: '#d33'
-                    });
-                }
-            } catch (err) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: 'Error updating class',
-                    confirmButtonColor: '#d33'
-                });
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = 'Save Changes';
-            }
-        });
-
-        let allStudents = [];
-
-        // Filter Elements
-        const searchInput = document.getElementById('searchInput');
-        const remarksFilter = document.getElementById('remarksFilter');
-        const periodFilter = document.getElementById('periodFilter');
-        const sortFilter = document.getElementById('sortFilter');
-
-        searchInput.addEventListener('input', renderStudents);
-        remarksFilter.addEventListener('change', renderStudents);
-        periodFilter.addEventListener('change', renderStudents);
-        sortFilter.addEventListener('change', renderStudents);
-
-
-
-        async function loadStudents() {
-            try {
-                const res = await fetch(`api.php?action=get_class_students&class_id=${classId}`);
-                const data = await res.json();
-
-                if (data.success) {
-                    allStudents = data.students;
-                    renderStudents();
-                }
-            } catch (err) {
-                console.error(err);
-                tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Failed to load students</td></tr>';
-            }
-        }
-
-        function renderStudents() {
-            let filtered = [...allStudents];
-
-            // Search
-            const search = searchInput.value.toLowerCase();
-            if (search) {
-                filtered = filtered.filter(s => 
-                    s.full_name.toLowerCase().includes(search) || 
-                    (s.school_id && s.school_id.toLowerCase().includes(search))
-                );
-            }
-
-            // Remarks
-            const remark = remarksFilter.value;
-            if (remark) {
-                filtered = filtered.filter(s => (s.remarks || '').includes(remark));
-            }
-
-            // Sort
-            const sort = sortFilter.value;
-            filtered.sort((a, b) => {
-                if (sort === 'name_asc') return a.full_name.localeCompare(b.full_name);
-                if (sort === 'name_desc') return b.full_name.localeCompare(a.full_name);
-                return 0;
-            });
-
-            tbody.innerHTML = '';
-            if (filtered.length === 0) {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="7" class="text-center py-5 text-muted">
-                            No students found.
-                        </td>
-                    </tr>
-                `;
-                return;
-            }
-
-            filtered.forEach(student => {
-                const row = document.createElement('tr');
-                const rawGradeVal = student.raw_grade !== null ? student.raw_grade : '';
-                const gradeVal = student.grade !== null ? student.grade : '';
-                const remarksVal = student.remarks || '';
-                
-                let rawGradeCell, gradeCell, remarksCell;
-
-                rawGradeCell = rawGradeVal ? `<span>${rawGradeVal}</span>` : '<span class="text-muted">-</span>';
-                gradeCell = gradeVal ? `<span class="fw-bold ${gradeVal <= 3.0 ? 'text-success' : 'text-danger'}">${gradeVal}</span>` : '<span class="text-muted">-</span>';
-                remarksCell = remarksVal ? `<span class="small">${remarksVal}</span>` : '<span class="text-muted">-</span>';
-
-                row.innerHTML = `
-                    <td>${student.school_id || '-'}</td>
-                    <td class="fw-bold">${student.full_name}</td>
-                    <td>${student.email}</td>
-                    <td>${new Date(student.joined_at).toLocaleDateString()}</td>
-                    <td>${rawGradeCell}</td>
-                    <td>${gradeCell}</td>
-                    <td>${remarksCell}</td>
-                    <td><span class="badge bg-success rounded-pill">Enrolled</span></td>
-                    <thead class="table-light">
-                        <tr>
-                            <th>Student ID</th>
-                            <th>Name</th>
-                            <th>Email</th>
-                            <th>Date Joined</th>
-                            <th>Raw Grade</th>
-                            <th>Transmuted</th>
-                            <th>Remarks</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td colspan="5" class="text-center py-4">
-                                <div class="spinner-border text-success spinner-border-sm" role="status"></div> Loading...
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-    </div>
-
-    <!-- Edit Class Modal -->
-    <div class="modal fade" id="editClassModal" tabindex="-1">
+    <!-- Manual Enroll Modal -->
+    <div class="modal fade" id="addStudentModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content border-0" style="border-radius: 24px;">
                 <div class="modal-header border-0 p-4">
-                    <h5 class="modal-title fw-bold">Edit Class</h5>
+                    <h5 class="modal-title fw-bold">Manually Enroll Student</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body p-4 pt-0">
-                    <form id="editClassForm">
+                    <p class="text-muted small mb-3">
+                        <i class="bi bi-info-circle me-1"></i>
+                        This action bypasses program and section restrictions. Use this for irregular students.
+                    </p>
+                    <form id="addStudentForm">
                         <input type="hidden" name="class_id" value="<?php echo $class_id; ?>">
                         <div class="vds-form-group">
-                            <label class="vds-label">Subject Code <span class="text-danger">*</span></label>
-                            <input type="text" name="subject_code" class="vds-input" value="<?php echo htmlspecialchars($class['subject_code']); ?>" maxlength="50" required>
+                            <label class="vds-label">Student ID</label>
+                            <input type="text" name="student_id" class="vds-input" placeholder="e.g. 2024-2-XXXXXX" required>
                         </div>
-                        <div class="vds-form-group">
-                            <label class="vds-label">Subject Description</label>
-                            <input type="text" name="subject_description" class="vds-input" value="<?php echo htmlspecialchars($class['subject_description']); ?>">
-                        </div>
-                        <div class="vds-form-group">
-                            <label class="vds-label">Section <span class="text-danger">*</span></label>
-                            <input type="text" name="section" class="vds-input" value="<?php echo htmlspecialchars($class['section']); ?>" maxlength="50" required>
-                        </div>
-                        <div class="vds-form-group">
-                            <label class="vds-label">Semester</label>
-                            <select name="semester" class="vds-input">
-                                <option <?php echo $class['semester'] == '1st Sem 2024-2025' ? 'selected' : ''; ?>>1st Sem 2024-2025</option>
-                                <option <?php echo $class['semester'] == '2nd Sem 2024-2025' ? 'selected' : ''; ?>>2nd Sem 2024-2025</option>
-                                <option <?php echo $class['semester'] == 'Summer 2024' ? 'selected' : ''; ?>>Summer 2024</option>
-                            </select>
-                        </div>
-                        <div class="vds-form-group">
-                            <label class="vds-label">Units <span class="text-danger">*</span></label>
-                            <input type="number" name="units" class="vds-input" value="<?php echo htmlspecialchars($class['units'] ?? 3); ?>" min="1" max="10" required>
-                        </div>
-                        <button type="submit" class="vds-btn vds-btn-primary w-100 mt-3">Save Changes</button>
+                        <button type="submit" class="vds-btn vds-btn-primary w-100 mt-3">Enroll Student</button>
                     </form>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Upload Grades Modal -->
+    <div class="modal fade" id="uploadGradesModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0" style="border-radius: 24px;">
+                <div class="modal-header border-0 p-4">
+                    <h5 class="modal-title fw-bold">Upload Grades</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4 pt-0">
+                    <p class="text-muted small mb-3">
+                        Upload a CSV or Excel file to bulk upload grades. Existing grades for students will be overwritten.
+                    </p>
+                    <form id="uploadGradesForm" enctype="multipart/form-data">
+                        <input type="hidden" name="class_id" value="<?php echo $class_id; ?>">
+                        <div class="vds-form-group">
+                            <label class="vds-label">Grading Period</label>
+                            <select name="grading_period" class="vds-select" required>
+                                <option value="midterm">Midterm</option>
+                                <option value="final">Final</option>
+                            </select>
+                        </div>
+                        <div class="vds-form-group">
+                            <label class="vds-label">Grade File (CSV/Excel)</label>
+                            <input type="file" name="grade_file" class="vds-input" accept=".csv, .xlsx, .xls" required>
+                        </div>
+                        <button type="submit" class="vds-btn vds-btn-primary w-100 mt-3">Upload & Process</button>
+                    </form>
+                    <div id="uploadResult" class="mt-3"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <?php include 'footer_dashboard.php'; ?>
     <script src="js/bootstrap.bundle.min.js"></script>
+
 
     <script>
         const classId = <?php echo $class_id; ?>;
@@ -660,6 +512,152 @@ while ($row = $progRes->fetch_assoc()) {
                     if (endSel) endSel.value = end;
                 }
             }
+        }
+        // Manual Enroll Logic
+        const addStudentForm = document.getElementById('addStudentForm');
+        addStudentForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = e.target.querySelector('button[type="submit"]');
+            const studentIdInput = e.target.querySelector('input[name="student_id"]').value;
+            
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Enrolling...';
+
+            try {
+                const res = await fetch('api.php?action=manual_enroll', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        class_id: classId,
+                        student_school_id: studentIdInput,
+                        csrf_token: '<?php echo $_SESSION['csrf_token']; ?>'
+                    })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Success',
+                        text: data.message,
+                        confirmButtonColor: '#0D3B2E'
+                    }).then(() => {
+                        location.reload();
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: data.message,
+                        confirmButtonColor: '#d33'
+                    });
+                }
+            } catch (err) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'System Error',
+                    confirmButtonColor: '#d33'
+                });
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = 'Enroll Student';
+            }
+        });
+
+        // Archive Class Logic
+        const archiveBtn = document.getElementById('archiveClassBtn');
+        if (archiveBtn) {
+            archiveBtn.addEventListener('click', () => {
+                Swal.fire({
+                    title: 'Archive this Class?',
+                    text: "It will be hidden from your active classes list.",
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#6B9080',
+                    confirmButtonText: 'Yes, archive it!'
+                }).then(async (result) => {
+                    if (result.isConfirmed) {
+                        try {
+                            const res = await fetch('api.php?action=archive_class', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    class_id: classId,
+                                    csrf_token: '<?php echo $_SESSION['csrf_token']; ?>'
+                                })
+                            });
+                            const data = await res.json();
+                            if (data.success) {
+                                Swal.fire('Archived!', data.message, 'success')
+                                    .then(() => window.location.href = 'my_classes.php');
+                            } else {
+                                Swal.fire('Error', data.message, 'error');
+                            }
+                        } catch (err) {
+                            Swal.fire('Error', 'System Error', 'error');
+                        }
+                    }
+                });
+            });
+        }
+
+        // Upload Grades Form Logic
+        const uploadForm = document.getElementById('uploadGradesForm');
+        if (uploadForm) {
+            uploadForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const btn = uploadForm.querySelector('button');
+                const resultDiv = document.getElementById('uploadResult');
+                
+                const formData = new FormData(uploadForm);
+                formData.append('csrf_token', '<?php echo $_SESSION['csrf_token']; ?>');
+
+                btn.disabled = true;
+                btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Uploading...';
+                resultDiv.innerHTML = '';
+
+                try {
+                    const res = await fetch('api.php?action=bulk_upload_grades', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const data = await res.json();
+                    
+                    if (data.success) {
+                        let msg = `Successfully processed. Added: ${data.added}, Updated: ${data.updated}.`;
+                        if (data.errors && data.errors.length > 0) {
+                            msg += '<br>Errors:<br>' + data.errors.join('<br>');
+                        }
+                        
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Upload Complete',
+                            html: msg,
+                            confirmButtonColor: '#0D3B2E'
+                        }).then(() => {
+                            location.reload();
+                        });
+                    } else {
+                        let errMsg = data.message;
+                         if (data.errors && data.errors.length > 0) {
+                            errMsg += '<br>' + data.errors.join('<br>');
+                        }
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Upload Failed',
+                            html: errMsg,
+                        });
+                    }
+                } catch (err) {
+                    console.error(err);
+                    Swal.fire('Error', 'System Error', 'error');
+                } finally {
+                    btn.disabled = false;
+                    btn.innerHTML = 'Upload & Process';
+                }
+            });
         }
     </script>
 </body>

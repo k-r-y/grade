@@ -136,7 +136,93 @@ $active_teachers = $stmtActive->get_result();
 
     <?php include 'footer_dashboard.php'; ?>
     
-    <!-- Include Create Teacher Modal from dashboard if needed, or duplicate here -->
+    <!-- Create Teacher Modal -->
+    <div class="modal fade" id="createTeacherModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0" style="border-radius: 24px; overflow: hidden;">
+                <div class="modal-header border-0 p-4" style="background: var(--vds-forest); color: white;">
+                    <h5 class="modal-title fw-bold">Create Teacher Account</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <form action="process_create_teacher.php" method="POST">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <div class="vds-form-group">
+                                    <label class="vds-label">First Name</label>
+                                    <input type="text" class="vds-input" name="first_name" required>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="vds-form-group">
+                                    <label class="vds-label">Middle Name</label>
+                                    <input type="text" class="vds-input" name="middle_name">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="vds-form-group">
+                                    <label class="vds-label">Last Name</label>
+                                    <input type="text" class="vds-input" name="last_name" required>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="vds-form-group">
+                                    <label class="vds-label">Email Address</label>
+                                    <input type="email" class="vds-input" name="email" required>
+                                </div>
+                            </div>
+                             <div class="col-12">
+                                <div class="vds-form-group">
+                                    <label class="vds-label">Employee ID (School ID)</label>
+                                    <input type="text" class="vds-input" name="school_id" placeholder="T-2024-XXXX" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="vds-form-group">
+                                    <label class="vds-label">Password</label>
+                                    <input type="password" class="vds-input" name="password" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="vds-form-group">
+                                    <label class="vds-label">Confirm Password</label>
+                                    <input type="password" class="vds-input" name="confirm_password" required>
+                                </div>
+                            </div>
+                        </div>
+                        <input type="hidden" name="user_type" value="teacher">
+                        
+                        <div class="d-flex gap-2 mt-4">
+                            <button type="button" class="vds-btn vds-btn-secondary flex-grow-1" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="vds-btn vds-btn-primary flex-grow-1">Create Account</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="js/bootstrap.bundle.min.js"></script>
 
+    <script>
+        // Check for success/error parameters in URL
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('success')) {
+             Swal.fire({
+                icon: 'success',
+                title: 'Success',
+                text: urlParams.get('success'),
+                confirmButtonColor: '#0D3B2E'
+            });
+        }
+        if (urlParams.has('error')) {
+             Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: urlParams.get('error'),
+                confirmButtonColor: '#d33'
+            });
+        }
+    </script>
 </body>
 </html>
