@@ -17,15 +17,59 @@ $stmt->bind_param("i", $admin_id);
 $stmt->execute();
 $institute_id = $stmt->get_result()->fetch_assoc()['institute_id'];
 
-// Fetch Students
-$stmtStudents = $conn->prepare("SELECT full_name, email, school_id, program_id, created_at FROM users WHERE role = 'student' AND institute_id = ?");
-$stmtStudents->bind_param("i", $institute_id);
+// Get Programs for Filter
+$stmtProgs = $conn->prepare("SELECT id, code, name FROM programs WHERE institute_id = ? ORDER BY code ASC");
+$stmtProgs->bind_param("i", $institute_id);
+$stmtProgs->execute();
+$programs = $stmtProgs->get_result();
+
+// Filters
+$search = isset($_GET['search']) ? trim($_GET['search']) : '';
+$prog_filter = isset($_GET['program_id']) ? intval($_GET['program_id']) : 0;
+$sec_filter = isset($_GET['section']) ? trim($_GET['section']) : '';
+
+// Build Query
+$sql = "
+    SELECT u.full_name, u.email, u.school_id, u.created_at, u.section, p.code as program_code 
+    FROM users u 
+    LEFT JOIN programs p ON u.program_id = p.id 
+    WHERE u.role = 'student' AND u.institute_id = ?
+";
+$params = [$institute_id];
+$types = "i";
+
+if (!empty($search)) {
+    $sql .= " AND (u.full_name LIKE ? OR u.school_id LIKE ?)";
+    $searchTerm = "%$search%";
+    $params[] = $searchTerm;
+    $params[] = $searchTerm;
+    $types .= "ss";
+}
+
+if ($prog_filter > 0) {
+    $sql .= " AND u.program_id = ?";
+    $params[] = $prog_filter;
+    $types .= "i";
+}
+
+if (!empty($sec_filter)) {
+    $sql .= " AND u.section LIKE ?";
+    $secTerm = "%$sec_filter%";
+    $params[] = $secTerm;
+    $types .= "s";
+}
+
+$sql .= " ORDER BY u.created_at DESC";
+
+$stmtStudents = $conn->prepare($sql);
+$stmtStudents->bind_param($types, ...$params);
 $stmtStudents->execute();
 $students = $stmtStudents->get_result();
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -34,6 +78,7 @@ $students = $stmtStudents->get_result();
     <link href="bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
     <link rel="stylesheet" href="verdantDesignSystem.css">
 </head>
+
 <body class="vds-bg-vapor">
 
     <?php include 'navbar_dashboard.php'; ?>
@@ -47,6 +92,37 @@ $students = $stmtStudents->get_result();
             </div>
         </div>
 
+        <!-- Filters -->
+        <div class="vds-card p-4 mb-4">
+            <form method="GET" class="row g-3 align-items-end">
+                <div class="col-md-4">
+                    <label class="vds-label">Search</label>
+                    <input type="text" name="search" class="vds-input" placeholder="Name or Student ID" value="<?php echo htmlspecialchars($search); ?>">
+                </div>
+                <div class="col-md-3">
+                    <label class="vds-label">Program</label>
+                    <select name="program_id" class="vds-select">
+                        <option value="0">All Programs</option>
+                        <?php
+                        $programs->data_seek(0);
+                        while ($p = $programs->fetch_assoc()):
+                        ?>
+                            <option value="<?php echo $p['id']; ?>" <?php echo ($prog_filter == $p['id']) ? 'selected' : ''; ?>>
+                                <?php echo htmlspecialchars($p['code']); ?>
+                            </option>
+                        <?php endwhile; ?>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="vds-label">Section</label>
+                    <input type="text" name="section" class="vds-input" placeholder="e.g. 101" value="<?php echo htmlspecialchars($sec_filter); ?>">
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="vds-btn vds-btn-primary w-100">Filter</button>
+                </div>
+            </form>
+        </div>
+
         <div class="vds-card overflow-hidden">
             <div class="table-responsive">
                 <table class="vds-table mb-0">
@@ -54,23 +130,52 @@ $students = $stmtStudents->get_result();
                         <tr>
                             <th class="ps-4">Student ID</th>
                             <th>Name</th>
+                            <th>Program</th>
+                            <th>Section</th>
                             <th>Email</th>
                             <th>Date Registered</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php if ($students->num_rows > 0): ?>
-                            <?php while($student = $students->fetch_assoc()): ?>
-                            <tr>
-                                <td class="ps-4 fw-bold" style="color: var(--vds-forest);"><?php echo htmlspecialchars($student['school_id']); ?></td>
-                                <td><?php echo htmlspecialchars($student['full_name']); ?></td>
-                                <td><?php echo htmlspecialchars($student['email']); ?></td>
-                                <td class="text-muted"><?php echo date('M d, Y', strtotime($student['created_at'])); ?></td>
-                            </tr>
+                            <?php while ($student = $students->fetch_assoc()): ?>
+                                <tr>
+                                    <td class="ps-4 fw-bold" style="color: var(--vds-forest);"><?php echo htmlspecialchars($student['school_id']); ?></td>
+                                    <td>
+                                        <?php
+                                        $nameParts = explode(' ', trim($student['full_name']));
+                                        if (count($nameParts) > 1) {
+                                            $lastName = array_pop($nameParts);
+                                            $firstName = implode(' ', $nameParts);
+                                            echo htmlspecialchars("$lastName, $firstName");
+                                        } else {
+                                            echo htmlspecialchars($student['full_name']);
+                                        }
+                                        ?>
+                                    </td>
+                                    <td>
+                                        <?php if (!empty($student['program_code'])): ?>
+                                            <span class="vds-pill" style="background: var(--vds-sage); color: var(--vds-forest);">
+                                                <?php echo htmlspecialchars($student['program_code']); ?>
+                                            </span>
+                                        <?php else: ?>
+                                            <span class="text-muted">-</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
+                                        <?php if (!empty($student['section'])): ?>
+                                            <?php echo htmlspecialchars($student['section']); ?>
+                                        <?php else: ?>
+                                            <span class="text-muted">-</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td><?php echo htmlspecialchars($student['email']); ?></td>
+                                    <td class="text-muted"><?php echo date('M d, Y', strtotime($student['created_at'])); ?></td>
+                                </tr>
                             <?php endwhile; ?>
                         <?php else: ?>
                             <tr>
-                                <td colspan="4" class="text-center p-5 text-muted">No students found.</td>
+                                <td colspan="6" class="text-center p-5 text-muted">No students found matching your criteria.</td>
                             </tr>
                         <?php endif; ?>
                     </tbody>
@@ -82,4 +187,5 @@ $students = $stmtStudents->get_result();
     <?php include 'footer_dashboard.php'; ?>
 
 </body>
+
 </html>

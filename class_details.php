@@ -31,6 +31,7 @@ while ($row = $progRes->fetch_assoc()) {
 ?>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -40,12 +41,13 @@ while ($row = $progRes->fetch_assoc()) {
     <link rel="stylesheet" href="verdantDesignSystem.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
+
 <body class="vds-bg-vapor">
 
     <?php include 'navbar_dashboard.php'; ?>
 
     <div class="vds-container min-vh-100 py-5">
-        
+
         <!-- Header -->
         <div class="mb-5">
             <a href="my_classes.php" class="vds-text-muted text-decoration-none mb-2 d-inline-block"><i class="bi bi-arrow-left me-1"></i> Back to Classes</a>
@@ -145,7 +147,7 @@ while ($row = $progRes->fetch_assoc()) {
                 <div class="modal-body p-4 pt-0">
                     <form id="editClassForm">
                         <input type="hidden" name="class_id" value="<?php echo $class_id; ?>">
-                        
+
                         <div class="vds-form-group">
                             <label class="vds-label">Program Restriction <span class="text-danger">*</span></label>
                             <select name="program_id" class="vds-select" required>
@@ -281,14 +283,16 @@ while ($row = $progRes->fetch_assoc()) {
             const formData = new FormData(e.target);
             const payload = Object.fromEntries(formData.entries());
             const btn = e.target.querySelector('button[type="submit"]');
-            
+
             btn.disabled = true;
             btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Saving...';
 
             try {
                 const res = await fetch('api.php?action=edit_class', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
                     body: JSON.stringify(payload)
                 });
                 const data = await res.json();
@@ -341,8 +345,8 @@ while ($row = $progRes->fetch_assoc()) {
             // Search
             const search = searchInput.value.toLowerCase();
             if (search) {
-                filtered = filtered.filter(s => 
-                    s.full_name.toLowerCase().includes(search) || 
+                filtered = filtered.filter(s =>
+                    s.full_name.toLowerCase().includes(search) ||
                     (s.school_id && s.school_id.toLowerCase().includes(search))
                 );
             }
@@ -381,14 +385,20 @@ while ($row = $progRes->fetch_assoc()) {
 
                 if (period === 'midterm') gradeVal = student.midterm;
                 else if (period === 'final') gradeVal = student.final;
-                else gradeVal = student.grade;
+                else {
+                    gradeVal = student.grade;
+                    // Fallback: Show latest transmuted grade if semestral is not yet calculated
+                    if ((gradeVal === null || gradeVal === "") && student.transmutated_grade) {
+                        gradeVal = student.transmutated_grade;
+                    }
+                }
 
-                gradeVal = gradeVal !== null ? parseFloat(gradeVal) : null;
-                
+                gradeVal = gradeVal !== null && gradeVal !== "" ? parseFloat(gradeVal) : null;
+
                 // Auto-calculate remarks
                 let calculatedRemarks = '';
                 let remarksClass = '';
-                
+
                 if (gradeVal !== null) {
                     if (gradeVal <= 3.0) {
                         calculatedRemarks = 'Passed';
@@ -403,10 +413,10 @@ while ($row = $progRes->fetch_assoc()) {
                 // If existing remarks is just "Passed" or "Failed", ignore it to avoid duplication if we want strict auto.
                 // But user might have custom notes. Let's show custom notes if they differ from calculated.
                 // For now, let's just show calculated + notes if available.
-                
+
                 let displayRemarks = calculatedRemarks;
                 if (student.remarks && student.remarks !== 'Passed' && student.remarks !== 'Failed') {
-                     displayRemarks += ` <small class="text-muted">(${student.remarks})</small>`;
+                    displayRemarks += ` <small class="text-muted">(${student.remarks})</small>`;
                 }
 
                 let rawGradeCell, gradeCell, remarksCell;
@@ -438,15 +448,15 @@ while ($row = $progRes->fetch_assoc()) {
             const times = [];
             const startHour = 7; // 7 AM
             const endHour = 19; // 7 PM
-            
+
             for (let h = startHour; h <= endHour; h++) {
                 for (let m = 0; m < 60; m += 30) {
-                    if (h === endHour && m > 0) break; 
-                    
+                    if (h === endHour && m > 0) break;
+
                     const period = h >= 12 ? 'PM' : 'AM';
                     let displayHour = h > 12 ? h - 12 : h;
                     if (displayHour === 0) displayHour = 12;
-                    
+
                     const minStr = m === 0 ? '00' : '30';
                     const timeStr = `${displayHour}:${minStr} ${period}`;
                     times.push(timeStr);
@@ -456,7 +466,7 @@ while ($row = $progRes->fetch_assoc()) {
         }
 
         const timeOptions = generateTimeOptions();
-        
+
         function populateTimeSelects() {
             document.querySelectorAll('.sched-start, .sched-end').forEach(select => {
                 const isEnd = select.classList.contains('sched-end');
@@ -469,7 +479,7 @@ while ($row = $progRes->fetch_assoc()) {
                 });
             });
         }
-        
+
         populateTimeSelects();
 
         function updateScheduleInput(form) {
@@ -477,7 +487,7 @@ while ($row = $progRes->fetch_assoc()) {
             const start = form.querySelector('.sched-start').value;
             const end = form.querySelector('.sched-end').value;
             const hiddenInput = form.querySelector('input[name="schedule"]');
-            
+
             if (day && start && end) {
                 hiddenInput.value = `${day} ${start}-${end}`;
             } else {
@@ -502,7 +512,7 @@ while ($row = $progRes->fetch_assoc()) {
                 if (times.length === 2) {
                     const start = times[0];
                     const end = times[1];
-                    
+
                     const daySel = editForm.querySelector('.sched-day');
                     const startSel = editForm.querySelector('.sched-start');
                     const endSel = editForm.querySelector('.sched-end');
@@ -519,14 +529,16 @@ while ($row = $progRes->fetch_assoc()) {
             e.preventDefault();
             const btn = e.target.querySelector('button[type="submit"]');
             const studentIdInput = e.target.querySelector('input[name="student_id"]').value;
-            
+
             btn.disabled = true;
             btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Enrolling...';
 
             try {
                 const res = await fetch('api.php?action=manual_enroll', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
                     body: JSON.stringify({
                         class_id: classId,
                         student_school_id: studentIdInput,
@@ -582,7 +594,9 @@ while ($row = $progRes->fetch_assoc()) {
                         try {
                             const res = await fetch('api.php?action=archive_class', {
                                 method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
                                 body: JSON.stringify({
                                     class_id: classId,
                                     csrf_token: '<?php echo $_SESSION['csrf_token']; ?>'
@@ -610,7 +624,7 @@ while ($row = $progRes->fetch_assoc()) {
                 e.preventDefault();
                 const btn = uploadForm.querySelector('button');
                 const resultDiv = document.getElementById('uploadResult');
-                
+
                 const formData = new FormData(uploadForm);
                 formData.append('csrf_token', '<?php echo $_SESSION['csrf_token']; ?>');
 
@@ -624,13 +638,13 @@ while ($row = $progRes->fetch_assoc()) {
                         body: formData
                     });
                     const data = await res.json();
-                    
+
                     if (data.success) {
                         let msg = `Successfully processed. Added: ${data.added}, Updated: ${data.updated}.`;
                         if (data.errors && data.errors.length > 0) {
                             msg += '<br>Errors:<br>' + data.errors.join('<br>');
                         }
-                        
+
                         Swal.fire({
                             icon: 'success',
                             title: 'Upload Complete',
@@ -641,7 +655,7 @@ while ($row = $progRes->fetch_assoc()) {
                         });
                     } else {
                         let errMsg = data.message;
-                         if (data.errors && data.errors.length > 0) {
+                        if (data.errors && data.errors.length > 0) {
                             errMsg += '<br>' + data.errors.join('<br>');
                         }
                         Swal.fire({
@@ -661,4 +675,5 @@ while ($row = $progRes->fetch_assoc()) {
         }
     </script>
 </body>
+
 </html>

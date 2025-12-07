@@ -9,6 +9,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'teacher') {
 ?>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -18,6 +19,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'teacher') {
     <link href="bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
     <link rel="stylesheet" href="verdantDesignSystem.css">
 </head>
+
 <body class="vds-bg-vapor">
 
     <?php include 'navbar_dashboard.php'; ?>
@@ -105,7 +107,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'teacher') {
         const editGradesBtn = document.getElementById('editGradesBtn');
         const classSelect = document.getElementById('classSelect');
         const tbody = document.getElementById('studentsTableBody');
-        
+
         // Filters
         const searchInput = document.getElementById('searchInput');
         const remarksFilter = document.getElementById('remarksFilter');
@@ -132,9 +134,9 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'teacher') {
             try {
                 const res = await fetch('api.php?action=get_classes');
                 const data = await res.json();
-                
+
                 classSelect.innerHTML = '<option value="">Select a Class...</option>';
-                
+
                 if (data.success && data.classes.length > 0) {
                     classes = data.classes;
                     classes.forEach(c => {
@@ -177,8 +179,8 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'teacher') {
             // Search
             const search = searchInput.value.toLowerCase();
             if (search) {
-                filtered = filtered.filter(s => 
-                    s.full_name.toLowerCase().includes(search) || 
+                filtered = filtered.filter(s =>
+                    s.full_name.toLowerCase().includes(search) ||
                     (s.school_id && s.school_id.toLowerCase().includes(search))
                 );
             }
@@ -206,9 +208,9 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'teacher') {
             filtered.forEach(student => {
                 const row = document.createElement('tr');
                 const rawGradeVal = student.raw_grade !== null ? student.raw_grade : '';
-                const gradeVal = student.grade !== null ? student.grade : '';
+                const gradeVal = student.transmutated_grade !== null ? student.transmutated_grade : (student.grade !== null ? student.grade : '');
                 const remarksVal = student.remarks || '';
-                
+
                 let rawGradeCell, gradeCell, remarksCell;
 
                 if (isEditMode) {
@@ -262,7 +264,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'teacher') {
             const [transmuted, remarks] = transmuteGrade(raw);
             const transmutedEl = document.getElementById(`transmuted-${studentId}`);
             const remarksEl = document.getElementById(`remarks-${studentId}`);
-            
+
             if (transmutedEl) transmutedEl.textContent = transmuted;
             if (remarksEl && remarksEl.value === '') { // Only auto-fill if empty? Or always? 
                 // Let's match previous logic: update remarks if it matches a standard status or if we want to force it.
@@ -275,7 +277,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'teacher') {
         async function saveGrade(studentId) {
             const rawInput = document.getElementById(`raw-grade-${studentId}`);
             const remarksInput = document.getElementById(`remarks-${studentId}`);
-            
+
             if (!rawInput || !remarksInput) return;
 
             const rawGrade = rawInput.value;
@@ -318,4 +320,5 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'teacher') {
         }
     </script>
 </body>
+
 </html>
