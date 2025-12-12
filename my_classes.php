@@ -12,7 +12,6 @@ require 'check_profile.php';
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Classes | KLD Grade System</title>
-    <meta name="csrf-token" content="<?php echo $_SESSION['csrf_token']; ?>">
     <link href="css/bootstrap.min.css" rel="stylesheet">
     <link href="bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
     <link rel="stylesheet" href="verdantDesignSystem.css">

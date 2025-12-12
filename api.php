@@ -16,7 +16,7 @@ $logMessage = date('Y-m-d H:i:s') . " - Action: $action\n";
 file_put_contents($logFile, $logMessage, FILE_APPEND);
 
 if ($action === 'get_institutes') {
-    $sql = "SELECT * FROM institutes ORDER BY name ASC";
+    $sql = "SELECT * FROM institutes GROUP BY name ORDER BY name ASC";
     $result = $conn->query($sql);
     $data = [];
     while ($row = $result->fetch_assoc()) {
@@ -29,9 +29,9 @@ if ($action === 'get_institutes') {
 if ($action === 'get_programs') {
     $institute_id = isset($_GET['institute_id']) ? intval($_GET['institute_id']) : 0;
     if ($institute_id > 0) {
-        $sql = "SELECT * FROM programs WHERE institute_id = $institute_id ORDER BY name ASC";
+        $sql = "SELECT * FROM programs WHERE institute_id = $institute_id GROUP BY name ORDER BY name ASC";
     } else {
-        $sql = "SELECT * FROM programs ORDER BY name ASC";
+        $sql = "SELECT * FROM programs GROUP BY name ORDER BY name ASC";
     }
     $result = $conn->query($sql);
     $data = [];
@@ -641,6 +641,45 @@ if ($action === 'archive_class') {
     exit;
 }
 
+// Unarchive Class
+if ($action === 'unarchive_class') {
+    if (!isset($_SESSION['role']) || ($_SESSION['role'] !== 'teacher' && $_SESSION['role'] !== 'admin')) {
+        echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+        exit;
+    }
+
+    $input = json_decode(file_get_contents('php://input'), true);
+    $class_id = intval($input['class_id']);
+    $teacher_id = $_SESSION['user_id'];
+    $csrf_token = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? ($input['csrf_token'] ?? '');
+
+    if (!verify_csrf_token($csrf_token)) {
+        echo json_encode(['success' => false, 'message' => 'Invalid CSRF Token']);
+        exit;
+    }
+
+    // Verify ownership (if teacher)
+    if ($_SESSION['role'] === 'teacher') {
+        $stmtCheck = $conn->prepare("SELECT id FROM classes WHERE id = ? AND teacher_id = ?");
+        $stmtCheck->bind_param("ii", $class_id, $teacher_id);
+        $stmtCheck->execute();
+        if ($stmtCheck->get_result()->num_rows === 0) {
+            echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+            exit;
+        }
+    }
+
+    $stmt = $conn->prepare("UPDATE classes SET is_archived = 0 WHERE id = ?");
+    $stmt->bind_param("i", $class_id);
+
+    if ($stmt->execute()) {
+        echo json_encode(['success' => true, 'message' => 'Class unarchived successfully']);
+    } else {
+        echo json_encode(['success' => false, 'message' => 'Database error']);
+    }
+    exit;
+}
+
 // Get Class Students
 if ($action === 'get_class_students') {
     $class_id = intval($_GET['class_id']);
@@ -654,31 +693,44 @@ if ($action === 'get_class_students') {
         exit;
     }
 
-    $stmt = $conn->prepare("
-        SELECT u.id, u.school_id, u.full_name, u.email, e.joined_at, g.grade, g.midterm, g.final, g.raw_grade, g.transmutated_grade, g.remarks
+    try {
+        $stmt = $conn->prepare("
+            SELECT u.id, u.school_id, u.full_name, u.email, e.joined_at, g.grade, g.midterm, g.final, g.raw_grade, g.transmutated_grade, g.remarks
 
-        FROM enrollments e 
-        JOIN users u ON e.student_id = u.id 
-        LEFT JOIN grades g ON g.student_id = u.id AND g.class_id = ?
-        WHERE e.class_id = ? 
-        ORDER BY SUBSTRING_INDEX(u.full_name, ' ', -1) ASC, u.full_name ASC
-    ");
-    $stmt->bind_param("ii", $class_id, $class_id);
-    $stmt->execute();
-    $res = $stmt->get_result();
-    $students = [];
-    while ($row = $res->fetch_assoc()) {
-        // Format Name: "First Last" -> "Last, First"
-        $nameParts = explode(' ', trim($row['full_name']));
-        if (count($nameParts) > 1) {
-            $lastName = array_pop($nameParts);
-            $firstName = implode(' ', $nameParts);
-            $row['full_name'] = "$lastName, $firstName";
+            FROM enrollments e 
+            JOIN users u ON e.student_id = u.id 
+            LEFT JOIN grades g ON g.student_id = u.id AND g.class_id = ?
+            WHERE e.class_id = ? 
+            ORDER BY SUBSTRING_INDEX(u.full_name, ' ', -1) ASC, u.full_name ASC
+        ");
+
+        if (!$stmt) {
+            throw new Exception("Prepare failed: " . $conn->error);
         }
-        $students[] = $row;
-    }
 
-    echo json_encode(['success' => true, 'students' => $students]);
+        $stmt->bind_param("ii", $class_id, $class_id);
+
+        if (!$stmt->execute()) {
+            throw new Exception("Execute failed: " . $stmt->error);
+        }
+
+        $res = $stmt->get_result();
+        $students = [];
+        while ($row = $res->fetch_assoc()) {
+            // Format Name: "First Last" -> "Last, First"
+            $nameParts = explode(' ', trim($row['full_name']));
+            if (count($nameParts) > 1) {
+                $lastName = array_pop($nameParts);
+                $firstName = implode(' ', $nameParts);
+                $row['full_name'] = "$lastName, $firstName";
+            }
+            $students[] = $row;
+        }
+
+        echo json_encode(['success' => true, 'students' => $students]);
+    } catch (Throwable $e) {
+        echo json_encode(['success' => false, 'message' => 'Error loading students: ' . $e->getMessage()]);
+    }
     exit;
 }
 

@@ -69,9 +69,15 @@ while ($row = $progRes->fetch_assoc()) {
                     <button class="vds-btn vds-btn-secondary ms-2" data-bs-toggle="modal" data-bs-target="#editClassModal">
                         <i class="bi bi-pencil me-2"></i>Edit Class
                     </button>
-                    <button class="vds-btn vds-btn-danger ms-2" id="archiveClassBtn">
-                        <i class="bi bi-archive me-2"></i>Archive
-                    </button>
+                    <?php if (isset($class['is_archived']) && $class['is_archived'] == 1): ?>
+                        <button class="vds-btn vds-btn-success ms-2" id="unarchiveClassBtn">
+                            <i class="bi bi-archive-fill me-2"></i>Unarchive
+                        </button>
+                    <?php else: ?>
+                        <button class="vds-btn vds-btn-danger ms-2" id="archiveClassBtn">
+                            <i class="bi bi-archive me-2"></i>Archive
+                        </button>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
@@ -332,10 +338,12 @@ while ($row = $progRes->fetch_assoc()) {
                 if (data.success) {
                     allStudents = data.students;
                     renderStudents();
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">${data.message || 'Failed to load students.'}</td></tr>`;
                 }
             } catch (err) {
                 console.error(err);
-                tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Failed to load students</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger">System Error: Failed to load students</td></tr>';
             }
         }
 
@@ -542,7 +550,7 @@ while ($row = $progRes->fetch_assoc()) {
                     body: JSON.stringify({
                         class_id: classId,
                         student_school_id: studentIdInput,
-                        csrf_token: '<?php echo $_SESSION['csrf_token']; ?>'
+                        csrf_token: '<?php echo $_SESSION['csrf_token'] ?? ''; ?>'
                     })
                 });
                 const data = await res.json();
@@ -599,13 +607,53 @@ while ($row = $progRes->fetch_assoc()) {
                                 },
                                 body: JSON.stringify({
                                     class_id: classId,
-                                    csrf_token: '<?php echo $_SESSION['csrf_token']; ?>'
+                                    csrf_token: '<?php echo $_SESSION['csrf_token'] ?? ''; ?>'
                                 })
                             });
                             const data = await res.json();
                             if (data.success) {
                                 Swal.fire('Archived!', data.message, 'success')
                                     .then(() => window.location.href = 'my_classes.php');
+                            } else {
+                                Swal.fire('Error', data.message, 'error');
+                            }
+                        } catch (err) {
+                            Swal.fire('Error', 'System Error', 'error');
+                        }
+                    }
+                });
+            });
+        }
+
+        // Unarchive Class Logic
+        const unarchiveBtn = document.getElementById('unarchiveClassBtn');
+        if (unarchiveBtn) {
+            unarchiveBtn.addEventListener('click', () => {
+                Swal.fire({
+                    title: 'Unarchive this Class?',
+                    text: "It will be restored to your active classes list.",
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonColor: '#0D3B2E',
+                    cancelButtonColor: '#6B9080',
+                    confirmButtonText: 'Yes, unarchive it!'
+                }).then(async (result) => {
+                    if (result.isConfirmed) {
+                        try {
+                            const res = await fetch('api.php?action=unarchive_class', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({
+                                    class_id: classId,
+                                    csrf_token: '<?php echo $_SESSION['csrf_token'] ?? ''; ?>'
+                                })
+                            });
+                            const data = await res.json();
+                            if (data.success) {
+                                Swal.fire('Restored!', data.message, 'success')
+                                    .then(() => location.reload());
                             } else {
                                 Swal.fire('Error', data.message, 'error');
                             }
@@ -626,7 +674,7 @@ while ($row = $progRes->fetch_assoc()) {
                 const resultDiv = document.getElementById('uploadResult');
 
                 const formData = new FormData(uploadForm);
-                formData.append('csrf_token', '<?php echo $_SESSION['csrf_token']; ?>');
+                formData.append('csrf_token', '<?php echo $_SESSION['csrf_token'] ?? ''; ?>');
 
                 btn.disabled = true;
                 btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Uploading...';

@@ -5,6 +5,11 @@
             <img src="assets/logo2.png" alt="Logo" height="40">
             KLD Portal
         </a>
+        <button class="vds-nav-toggle" aria-label="Toggle navigation">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
         <div class="vds-nav-links">
             <a href="index.php#about" class="vds-nav-link">About</a>
             <a href="index.php#team" class="vds-nav-link">Team</a>
@@ -14,3 +19,4 @@
         </div>
     </div>
 </nav>
+<script src="js/navbar.js"></script>

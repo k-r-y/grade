@@ -78,7 +78,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <?php endif; ?>
 
         <form method="POST" id="profileForm">
-            <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+            <input type="hidden" name="csrf_token" value="">
             <div class="mb-3">
                 <label class="vds-label">Full Name</label>
                 <input type="text" class="vds-input" value="<?php echo htmlspecialchars($user['full_name']); ?>" disabled>

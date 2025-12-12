@@ -1,6 +1,7 @@
 <?php
 session_start();
 require 'db_connect.php';
+require_once 'csrf_helper.php';
 
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'teacher') {
     header("Location: login.php");
@@ -22,11 +23,13 @@ while ($row = $result->fetch_assoc()) {
 ?>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Upload Grades | KLD Grade System</title>
-    <meta name="csrf-token" content="<?php echo $_SESSION['csrf_token']; ?>">
+    <meta name="csrf-token" content="<?php echo generate_csrf_token(); ?>">
+
     <link href="css/bootstrap.min.css" rel="stylesheet">
     <link href="bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
     <link rel="stylesheet" href="verdantDesignSystem.css">
@@ -38,32 +41,48 @@ while ($row = $result->fetch_assoc()) {
             border-radius: 16px;
             padding: 3rem;
             text-align: center;
-            background: rgba(255,255,255,0.5);
+            background: rgba(255, 255, 255, 0.5);
             transition: all 0.3s ease;
             cursor: pointer;
         }
-        .vds-file-drop:hover, .vds-file-drop.drag-over {
+
+        .vds-file-drop:hover,
+        .vds-file-drop.drag-over {
             border-color: var(--vds-forest);
             background: rgba(13, 59, 46, 0.05);
         }
+
         .validation-icon {
             font-size: 1.2rem;
         }
-        .row-valid { background: rgba(34, 197, 94, 0.1); }
-        .row-invalid { background: rgba(239, 68, 68, 0.1); }
-        .row-duplicate { background: rgba(251, 191, 36, 0.1); }
+
+        .row-valid {
+            background: rgba(34, 197, 94, 0.1);
+        }
+
+        .row-invalid {
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        .row-duplicate {
+            background: rgba(251, 191, 36, 0.1);
+        }
+
         .editable-cell {
             border-bottom: 1px dashed var(--vds-sage);
             cursor: text;
             transition: background 0.2s;
         }
-        .editable-cell:hover, .editable-cell:focus {
+
+        .editable-cell:hover,
+        .editable-cell:focus {
             background: rgba(255, 255, 255, 0.8);
             outline: none;
             border-bottom: 1px solid var(--vds-forest);
         }
     </style>
 </head>
+
 <body class="vds-bg-vapor">
 
     <?php include 'navbar_dashboard.php'; ?>
@@ -80,7 +99,7 @@ while ($row = $result->fetch_assoc()) {
                 <p class="vds-text-muted">Import grades via Excel file for fast data encoding.</p>
             </div>
             <div>
-                 <button id="downloadTemplateHeader" class="vds-btn vds-btn-outline" style="border: 1px solid var(--vds-forest) !important;">
+                <button id="downloadTemplateHeader" class="vds-btn vds-btn-outline" style="border: 1px solid var(--vds-forest) !important;">
                     <i class="bi bi-download me-1"></i>Download Template
                 </button>
             </div>
@@ -89,11 +108,11 @@ while ($row = $result->fetch_assoc()) {
         <div class="row g-4">
             <!-- Left Column: Upload Workflow -->
             <div class="col-lg-7">
-                
+
                 <!-- Step 1: Select Class -->
                 <div class="vds-card p-4 mb-4">
                     <h2 class="vds-h5 mb-3 text-uppercase fw-bold text-success"><i class="bi bi-1-circle me-2"></i>Select Class</h2>
-                    
+
                     <?php if (empty($classes)): ?>
                         <div class="alert alert-warning mb-0">
                             <strong>No Classes Found.</strong> You need to create a class first.
@@ -104,7 +123,7 @@ while ($row = $result->fetch_assoc()) {
                             <select id="classSelect" class="vds-input">
                                 <option value="">-- Select a Class --</option>
                                 <?php foreach ($classes as $class): ?>
-                                    <option value="<?php echo $class['id']; ?>" 
+                                    <option value="<?php echo $class['id']; ?>"
                                         data-section="<?php echo htmlspecialchars($class['section']); ?>"
                                         data-subject-code="<?php echo htmlspecialchars($class['subject_code']); ?>"
                                         data-subject-name="<?php echo htmlspecialchars($class['subject_description']); ?>"
@@ -135,7 +154,7 @@ while ($row = $result->fetch_assoc()) {
                 <!-- Step 2: Upload -->
                 <div class="vds-card p-4 mb-4" id="uploadStep" style="opacity: 0.5; pointer-events: none;">
                     <h2 class="vds-h5 mb-3 text-uppercase fw-bold text-success"><i class="bi bi-2-circle me-2"></i>Upload File</h2>
-                    
+
                     <div class="vds-file-drop p-5" id="dropZone">
                         <i class="bi bi-cloud-arrow-up text-success mb-3" style="font-size: 2.5rem;"></i>
                         <h5 class="fw-bold">Drag & Drop Excel File</h5>
@@ -169,7 +188,7 @@ while ($row = $result->fetch_assoc()) {
                             <tbody></tbody>
                         </table>
                     </div>
-                    
+
                     <div class="d-flex justify-content-between align-items-center border-top pt-3">
                         <div class="small text-muted" id="previewSummary">Loaded 0 records</div>
                         <div>
@@ -185,13 +204,13 @@ while ($row = $result->fetch_assoc()) {
             <div class="col-lg-5">
                 <div class="vds-card p-4 sticky-top" style="top: 100px; z-index: 90;">
                     <h3 class="vds-h4 mb-4">How to Upload Grades</h3>
-                    
+
                     <div class="mb-4">
                         <h5 class="fw-bold mb-2">1. Prepare your Excel File</h5>
                         <p class="text-muted small mb-3">Your Excel file should match the format below. Using the template is highly recommended.</p>
-                        
+
                         <div class="bg-light p-3 rounded mb-3 text-center">
-                            <img src="assets/excel_format_guide.png" onerror="this.src='https://placehold.co/400x150?text=Excel+Format+Example'" alt="Excel Format" class="img-fluid rounded shadow-sm border">
+                            <img src="assets/sampleFormat.png" onerror="this.src='https://placehold.co/400x150?text=Excel+Format+Example'" alt="Excel Format" class="img-fluid rounded shadow-sm border">
                             <p class="text-muted small mt-2 fst-italic">Example of valid Excel structure</p>
                         </div>
 
@@ -252,7 +271,7 @@ while ($row = $result->fetch_assoc()) {
         const validateBtn = document.getElementById('validateBtn');
         const downloadTemplateBtn = document.getElementById('downloadTemplateHeader');
         const previewSummary = document.getElementById('previewSummary');
-        
+
         // Hidden fields
         const sectionInput = document.getElementById('section');
         const subjectCodeInput = document.getElementById('subjectCode');
@@ -285,7 +304,7 @@ while ($row = $result->fetch_assoc()) {
         // Initialize state based on selection
         function updateClassState() {
             if (!classSelect) return;
-            
+
             const selectedOption = classSelect.options[classSelect.selectedIndex];
             const backBtn = document.getElementById('backToClassBtn');
 
@@ -295,7 +314,7 @@ while ($row = $result->fetch_assoc()) {
                 subjectCodeInput.value = selectedOption.dataset.subjectCode;
                 subjectNameInput.value = selectedOption.dataset.subjectName;
                 semesterInput.value = selectedOption.dataset.semester;
-                
+
                 uploadStep.style.opacity = '1';
                 uploadStep.style.pointerEvents = 'auto';
 
@@ -309,7 +328,7 @@ while ($row = $result->fetch_assoc()) {
                 uploadStep.style.opacity = '0.5';
                 uploadStep.style.pointerEvents = 'none';
                 previewContainer.style.display = 'none';
-                
+
                 // Reset Back Button (to Dashboard if no class selected)
                 if (backBtn) {
                     backBtn.href = 'my_classes.php';
@@ -317,16 +336,16 @@ while ($row = $result->fetch_assoc()) {
                 }
             }
         }
-            
-        
+
+
 
         classSelect.addEventListener('change', updateClassState);
-        
+
         gradingPeriodSelect.addEventListener('change', () => {
             const text = gradingPeriodSelect.options[gradingPeriodSelect.selectedIndex].text;
             // periodLabel.textContent = text; // Removed
         });
-        
+
         // Run on load to handle pre-selection
         updateClassState();
 
@@ -340,21 +359,26 @@ while ($row = $result->fetch_assoc()) {
                 ['2024-2-000552', '74', 'Needs improvement']
             ];
             const ws = XLSX.utils.aoa_to_sheet(wsData);
-            
+
             // Set column widths
-            ws['!cols'] = [
-                { wch: 20 }, // Student ID
-                { wch: 15 }, // Raw Grade
-                { wch: 30 }  // Notes
+            ws['!cols'] = [{
+                    wch: 20
+                }, // Student ID
+                {
+                    wch: 15
+                }, // Raw Grade
+                {
+                    wch: 30
+                } // Notes
             ];
-            
+
             XLSX.utils.book_append_sheet(wb, ws, "Template");
             XLSX.writeFile(wb, "grade_upload_template.xlsx");
         });
 
         // Drag & Drop Events
         dropZone.addEventListener('click', () => fileInput.click());
-        
+
         dropZone.addEventListener('dragover', (e) => {
             e.preventDefault();
             dropZone.classList.add('drag-over');
@@ -379,16 +403,20 @@ while ($row = $result->fetch_assoc()) {
             const reader = new FileReader();
             reader.onload = (e) => {
                 const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, { type: 'array' });
+                const workbook = XLSX.read(data, {
+                    type: 'array'
+                });
                 const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                parsedData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
-                
+                parsedData = XLSX.utils.sheet_to_json(firstSheet, {
+                    header: 1
+                });
+
                 // Smart Parsing: Find header row
                 let headerRowIndex = -1;
                 for (let i = 0; i < Math.min(parsedData.length, 20); i++) {
                     const row = parsedData[i];
                     if (!row || row.length === 0) continue;
-                    
+
                     const rowStr = JSON.stringify(row).toLowerCase();
                     // Look for standard headers
                     if (rowStr.includes('student id') || (rowStr.includes('id') && rowStr.includes('grade'))) {
@@ -403,11 +431,11 @@ while ($row = $result->fetch_assoc()) {
                     // Fallback: Look for the first row that looks like data (starts with a number)
                     let dataStartIndex = 0;
                     for (let i = 0; i < Math.min(parsedData.length, 20); i++) {
-                         const firstCell = parsedData[i][0];
-                         if (firstCell && typeof firstCell === 'string' && /^\d/.test(firstCell)) {
-                             dataStartIndex = i;
-                             break;
-                         }
+                        const firstCell = parsedData[i][0];
+                        if (firstCell && typeof firstCell === 'string' && /^\d/.test(firstCell)) {
+                            dataStartIndex = i;
+                            break;
+                        }
                     }
                     parsedData = parsedData.slice(dataStartIndex);
                 }
@@ -422,7 +450,7 @@ while ($row = $result->fetch_assoc()) {
             previewTableBody.innerHTML = '';
             validationResults = {};
             publishBtn.disabled = true;
-            
+
             // Update Table Header
             const thead = document.querySelector('#previewTable thead tr');
             thead.innerHTML = `
@@ -435,7 +463,7 @@ while ($row = $result->fetch_assoc()) {
                 <th>Transmuted</th>
                 <th>Remarks</th>
             `;
-            
+
             const units = classSelect.options[classSelect.selectedIndex].dataset.units || 3;
 
             data.forEach((row, index) => {
@@ -446,19 +474,19 @@ while ($row = $result->fetch_assoc()) {
 
                 const rawGrade = row[1];
                 const [transmuted, remarks] = transmuteGrade(rawGrade);
-                
-                    const studentId = row[0];
-                    const idRegex = /^\d{4}-\d{1}-\d{6}$/;
-                    let statusIcon = 'bi-question-circle text-muted';
-                    let statusTitle = 'Pending Validation';
 
-                    if (studentId && !idRegex.test(studentId)) {
-                        statusIcon = 'bi-exclamation-triangle-fill text-warning';
-                        statusTitle = 'Invalid ID Format (xxxx-x-xxxxxx)';
-                    }
+                const studentId = row[0];
+                const idRegex = /^\d{4}-\d{1}-\d{6}$/;
+                let statusIcon = 'bi-question-circle text-muted';
+                let statusTitle = 'Pending Validation';
 
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = `
+                if (studentId && !idRegex.test(studentId)) {
+                    statusIcon = 'bi-exclamation-triangle-fill text-warning';
+                    statusTitle = 'Invalid ID Format (xxxx-x-xxxxxx)';
+                }
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
                         <td>${index + 1}</td>
                         <td><i class="bi ${statusIcon} validation-icon" id="status-${index}" title="${statusTitle}"></i></td>
                     <td contenteditable="true" class="editable-cell" onblur="updateData(${index}, 0, this.innerText)" onfocus="highlightRow(this)">${row[0]}</td>
@@ -484,19 +512,19 @@ while ($row = $result->fetch_assoc()) {
         window.handleGradeInput = function(index, cell) {
             const raw = cell.innerText;
             const rawFloat = parseFloat(raw);
-            
+
             if (isNaN(rawFloat) || rawFloat < 0 || rawFloat > 100) {
-                 cell.classList.add('text-danger', 'fw-bold');
-                 cell.title = "Grade must be between 0 and 100";
+                cell.classList.add('text-danger', 'fw-bold');
+                cell.title = "Grade must be between 0 and 100";
             } else {
-                 cell.classList.remove('text-danger', 'fw-bold');
-                 cell.title = "";
+                cell.classList.remove('text-danger', 'fw-bold');
+                cell.title = "";
             }
 
             const [transmuted, remarks] = transmuteGrade(raw);
-            
+
             document.getElementById(`transmuted-${index}`).innerHTML = `<span class="fw-bold text-primary">${transmuted}</span>`;
-            
+
             // Preserve existing notes if any
             const existingNotes = parsedData[index][2] || '';
             document.getElementById(`remarks-${index}`).innerHTML = `<span class="badge ${remarks === 'Passed' ? 'bg-success' : 'bg-danger'}">${remarks}</span> <small class="text-muted">${existingNotes}</small>`;
@@ -505,12 +533,12 @@ while ($row = $result->fetch_assoc()) {
         // Update parsedData array when cell is blurred
         window.updateData = function(index, colIndex, value) {
             parsedData[index][colIndex] = value.trim();
-            
+
             // If Student ID changed, reset validation status for that row
             if (colIndex === 0) {
                 const idRegex = /^\d{4}-\d{1}-\d{6}$/;
                 const isValidFormat = idRegex.test(value);
-                
+
                 const statusEl = document.getElementById(`status-${index}`);
                 if (!isValidFormat && value) {
                     statusEl.className = 'bi bi-exclamation-triangle-fill validation-icon text-warning';
@@ -519,10 +547,10 @@ while ($row = $result->fetch_assoc()) {
                     statusEl.className = 'bi bi-question-circle validation-icon text-muted';
                     statusEl.title = 'Pending Validation';
                 }
-                
+
                 document.getElementById(`student-name-${index}`).textContent = '-';
                 statusEl.closest('tr').className = '';
-                
+
                 // Reset summary counts (visual only, real count updates on Validate)
                 // We force user to click Validate again to be sure
                 publishBtn.disabled = true;
@@ -555,8 +583,10 @@ while ($row = $result->fetch_assoc()) {
             try {
                 const response = await fetch('api.php?action=validate_students', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
                         student_ids: studentIds,
                         class_id: currentClassId,
                         create_ghosts: document.getElementById('createGhostsCheck').checked,
@@ -568,7 +598,7 @@ while ($row = $result->fetch_assoc()) {
 
                 if (result.success) {
                     validationResults = {};
-                    
+
                     // Populate validation results
                     if (result.valid) {
                         result.valid.forEach(item => {
@@ -618,7 +648,7 @@ while ($row = $result->fetch_assoc()) {
                             } else if (res.status === 'not_enrolled') {
                                 statusIcon.className = 'bi bi-info-circle-fill validation-icon text-info';
                                 nameCell.textContent = 'Not Enrolled (Grade will be saved)';
-                                rowElem.className = 'row-duplicate'; 
+                                rowElem.className = 'row-duplicate';
                                 validCount++; // Treat as valid for button enablement
                                 autoEnrollCount++; // Show in summary
                             } else if (res.status === 'ghost_create') {
@@ -677,7 +707,11 @@ while ($row = $result->fetch_assoc()) {
                     });
                 }
             } catch (error) {
-                Swal.fire({ icon: 'error', title: 'Error', text: 'Error validating students: ' + error.message });
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Error validating students: ' + error.message
+                });
             } finally {
                 validateBtn.disabled = false;
                 validateBtn.innerHTML = '<i class="bi bi-shield-check me-1"></i>Validate Students';
@@ -688,10 +722,14 @@ while ($row = $result->fetch_assoc()) {
         publishBtn.addEventListener('click', async () => {
             try {
                 console.log('Publish button clicked');
-                
+
                 if (!currentClassId) {
                     console.warn('No class selected');
-                    Swal.fire({ icon: 'warning', title: 'Warning', text: 'Please select a class first.' });
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Warning',
+                        text: 'Please select a class first.'
+                    });
                     return;
                 }
 
@@ -702,11 +740,20 @@ while ($row = $result->fetch_assoc()) {
                 const gradingPeriod = gradingPeriodSelect.value;
                 const gradingPeriodText = gradingPeriodSelect.options[gradingPeriodSelect.selectedIndex].text;
 
-                console.log('Publishing for:', { section, subjectCode, gradingPeriod, count: parsedData.length });
+                console.log('Publishing for:', {
+                    section,
+                    subjectCode,
+                    gradingPeriod,
+                    count: parsedData.length
+                });
 
                 if (!parsedData || parsedData.length === 0) {
-                     Swal.fire({ icon: 'warning', title: 'No Data', text: 'No grade data to publish.' });
-                     return;
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'No Data',
+                        text: 'No grade data to publish.'
+                    });
+                    return;
                 }
 
                 // Check for invalid grades
@@ -716,7 +763,11 @@ while ($row = $result->fetch_assoc()) {
                 });
 
                 if (hasInvalidGrades) {
-                    Swal.fire({ icon: 'error', title: 'Invalid Grades', text: 'Some grades are invalid (must be 0-100). Please correct them before publishing.' });
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Invalid Grades',
+                        text: 'Some grades are invalid (must be 0-100). Please correct them before publishing.'
+                    });
                     return;
                 }
 
@@ -737,7 +788,9 @@ while ($row = $result->fetch_assoc()) {
 
                 const response = await fetch('api.php?action=bulk_upload_grades', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
                     body: JSON.stringify({
                         grades: parsedData,
                         section: section,
@@ -765,17 +818,25 @@ while ($row = $result->fetch_assoc()) {
                         icon: 'success',
                         confirmButtonColor: '#0D3B2E'
                     });
-                    
+
                     // Reset form
                     previewContainer.style.display = 'none';
                     parsedData = [];
                     fileInput.value = '';
                 } else {
-                    Swal.fire({ icon: 'error', title: 'Error', text: resJson.message });
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: resJson.message
+                    });
                 }
             } catch (error) {
                 console.error('Publish Error:', error);
-                Swal.fire({ icon: 'error', title: 'System Error', text: 'An unexpected error occurred: ' + error.message });
+                Swal.fire({
+                    icon: 'error',
+                    title: 'System Error',
+                    text: 'An unexpected error occurred: ' + error.message
+                });
             } finally {
                 publishBtn.disabled = false;
                 publishBtn.innerHTML = '<i class="bi bi-check-circle me-2"></i>Publish Grades';
@@ -784,4 +845,5 @@ while ($row = $result->fetch_assoc()) {
     </script>
 
 </body>
+
 </html>

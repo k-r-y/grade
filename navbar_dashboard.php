@@ -5,16 +5,21 @@ if (session_status() == PHP_SESSION_NONE) {
 ?>
 <nav class="vds-navbar">
     <div class="vds-container vds-nav-content">
-        <a href="<?php 
-            if ($_SESSION['role'] === 'teacher') echo 'teacher_dashboard.php';
-            elseif ($_SESSION['role'] === 'admin') echo 'admin_dashboard.php';
-            else echo 'student_dashboard.php'; 
-        ?>" class="vds-brand">
+        <a href="<?php
+                    if ($_SESSION['role'] === 'teacher') echo 'teacher_dashboard.php';
+                    elseif ($_SESSION['role'] === 'admin') echo 'admin_dashboard.php';
+                    else echo 'student_dashboard.php';
+                    ?>" class="vds-brand">
             <img src="assets/logo2.png" alt="Logo" height="40">
             KLD Portal
         </a>
+        <button class="vds-nav-toggle" aria-label="Toggle navigation">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
         <div class="vds-nav-links">
-<?php
+            <?php
             // Announcement Notification Logic
             require_once 'db_connect.php';
             $unread_count = 0;
@@ -22,7 +27,7 @@ if (session_status() == PHP_SESSION_NONE) {
                 $uid = $_SESSION['user_id'];
                 $u_role = $_SESSION['role'];
                 $three_days_ago = date('Y-m-d H:i:s', strtotime('-3 days'));
-                
+
                 if ($u_role === 'student') {
                     $stmtAnn = $conn->prepare("
                         SELECT COUNT(*) as count 
@@ -50,7 +55,7 @@ if (session_status() == PHP_SESSION_NONE) {
                     ");
                     $stmtAnn->bind_param("si", $three_days_ago, $uid);
                 }
-                
+
                 if (isset($stmtAnn)) {
                     $stmtAnn->execute();
                     $unread_count = $stmtAnn->get_result()->fetch_assoc()['count'];
@@ -58,10 +63,10 @@ if (session_status() == PHP_SESSION_NONE) {
             }
             ?>
 
-            <?php if(isset($_SESSION['role']) && $_SESSION['role'] === 'teacher'): ?>
+            <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'teacher'): ?>
                 <a href="teacher_dashboard.php" class="vds-nav-link">Dashboard</a>
                 <a href="my_classes.php" class="vds-nav-link">My Classes</a>
-            <?php elseif(isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
+            <?php elseif (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
                 <a href="admin_dashboard.php" class="vds-nav-link">Dashboard</a>
                 <a href="admin_students.php" class="vds-nav-link">Students</a>
             <?php else: ?>
@@ -69,7 +74,7 @@ if (session_status() == PHP_SESSION_NONE) {
                 <a href="student_classes.php" class="vds-nav-link">My Classes</a>
                 <a href="student_history.php" class="vds-nav-link">My Grades</a>
             <?php endif; ?>
-            
+
             <a href="announcements.php" class="vds-nav-link position-relative">
                 Announcements
                 <?php if ($unread_count > 0): ?>
@@ -84,3 +89,4 @@ if (session_status() == PHP_SESSION_NONE) {
         </div>
     </div>
 </nav>
+<script src="js/navbar.js"></script>

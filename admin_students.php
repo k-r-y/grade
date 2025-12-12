@@ -27,6 +27,7 @@ $programs = $stmtProgs->get_result();
 $search = isset($_GET['search']) ? trim($_GET['search']) : '';
 $prog_filter = isset($_GET['program_id']) ? intval($_GET['program_id']) : 0;
 $sec_filter = isset($_GET['section']) ? trim($_GET['section']) : '';
+$year_filter = isset($_GET['year_level']) ? intval($_GET['year_level']) : 0;
 
 // Build Query
 $sql = "
@@ -56,6 +57,13 @@ if (!empty($sec_filter)) {
     $sql .= " AND u.section LIKE ?";
     $secTerm = "%$sec_filter%";
     $params[] = $secTerm;
+    $types .= "s";
+}
+
+if ($year_filter >= 1 && $year_filter <= 4) {
+    $sql .= " AND u.section LIKE ?";
+    $yearTerm = $year_filter . '%';
+    $params[] = $yearTerm;
     $types .= "s";
 }
 
@@ -95,7 +103,7 @@ $students = $stmtStudents->get_result();
         <!-- Filters -->
         <div class="vds-card p-4 mb-4">
             <form method="GET" class="row g-3 align-items-end">
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label class="vds-label">Search</label>
                     <input type="text" name="search" class="vds-input" placeholder="Name or Student ID" value="<?php echo htmlspecialchars($search); ?>">
                 </div>
@@ -118,6 +126,16 @@ $students = $stmtStudents->get_result();
                     <input type="text" name="section" class="vds-input" placeholder="e.g. 101" value="<?php echo htmlspecialchars($sec_filter); ?>">
                 </div>
                 <div class="col-md-2">
+                    <label class="vds-label">Year Level</label>
+                    <select name="year_level" class="vds-select">
+                        <option value="0">All Years</option>
+                        <option value="1" <?php echo ($year_filter == 1) ? 'selected' : ''; ?>>1st Year</option>
+                        <option value="2" <?php echo ($year_filter == 2) ? 'selected' : ''; ?>>2nd Year</option>
+                        <option value="3" <?php echo ($year_filter == 3) ? 'selected' : ''; ?>>3rd Year</option>
+                        <option value="4" <?php echo ($year_filter == 4) ? 'selected' : ''; ?>>4th Year</option>
+                    </select>
+                </div>
+                <div class="col-md-1">
                     <button type="submit" class="vds-btn vds-btn-primary w-100">Filter</button>
                 </div>
             </form>
